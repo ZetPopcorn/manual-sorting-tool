@@ -78,22 +78,13 @@
       }
     }
 
+    shuffle(items);
+
     // Variables for state
     let currentLeft = [];
     let currentRight = [];
     let currentMerge = [];
     let mergeCallback = null;
-
-    // Check if there's a saved state
-    const savedState = JSON.parse(localStorage.getItem('mergeState'));
-    if (savedState) {
-      items = savedState.items || items;
-      currentLeft = savedState.currentLeft || [];
-      currentRight = savedState.currentRight || [];
-      currentMerge = savedState.currentMerge || [];
-    } else {
-      shuffle(items);
-    }
 
     // UI Elements
     const card1 = document.getElementById('card1');
@@ -132,7 +123,6 @@
     function displayNextComparison() {
       if (currentLeft.length === 0 && currentRight.length === 0) {
         mergeCallback(currentMerge);
-        saveState();
         return;
       }
 
@@ -168,23 +158,9 @@
       }
     }
 
-    function saveState() {
-      localStorage.setItem('mergeState', JSON.stringify({
-        items,
-        currentLeft,
-        currentRight,
-        currentMerge
-      }));
-    }
-
     async function startSorting() {
-      if (currentLeft.length > 0 || currentRight.length > 0) {
-        displayNextComparison();
-      } else {
-        const sorted = await mergeSort(items);
-        localStorage.removeItem('mergeState'); // Clear state after sorting
-        renderSortedList(sorted);
-      }
+      const sorted = await mergeSort(items);
+      renderSortedList(sorted);
     }
 
     function renderSortedList(sorted) {
