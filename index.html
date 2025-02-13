@@ -8,30 +8,32 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
   <div class="container mx-auto p-4 text-center">
-    <h1 class="text-2xl font-bold mb-4">Manual Sorting Tool</h1>
+    <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
 
     <!-- Cards for user selection -->
     <div id="card-container" class="flex items-center justify-center gap-8 mb-6">
-      <div id="card1" class="card bg-white shadow-md rounded-lg p-4 cursor-pointer">
-        <img id="card1-img" class="w-48 h-48 object-cover mx-auto mb-2" src="https://via.placeholder.com/150" alt="Card 1">
-        <p id="card1-desc" class="text-sm text-gray-700">Description 1</p>
+      <div id="card1" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow">
+        <img id="card1-img" class="w-48 h-48 object-cover mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 1">
+        <h2 id="card1-name" class="text-lg font-semibold mb-2">Character Name 1</h2>
+        <p id="card1-desc" class="text-sm text-gray-600">Description 1</p>
       </div>
-      <div id="card2" class="card bg-white shadow-md rounded-lg p-4 cursor-pointer">
-        <img id="card2-img" class="w-48 h-48 object-cover mx-auto mb-2" src="https://via.placeholder.com/150" alt="Card 2">
-        <p id="card2-desc" class="text-sm text-gray-700">Description 2</p>
+      <div id="card2" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow">
+        <img id="card2-img" class="w-48 h-48 object-cover mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 2">
+        <h2 id="card2-name" class="text-lg font-semibold mb-2">Character Name 2</h2>
+        <p id="card2-desc" class="text-sm text-gray-600">Description 2</p>
       </div>
     </div>
 
-    <p id="status" class="text-gray-600">Choose your favorite to start sorting!</p>
+    <p id="status" class="text-gray-700">Choose your favorite character to start sorting!</p>
   </div>
 
   <script>
     // Data to be sorted
     const items = [
-      { img: 'https://via.placeholder.com/150?text=1', desc: 'Item 1' },
-      { img: 'https://via.placeholder.com/150?text=2', desc: 'Item 2' },
-      { img: 'https://via.placeholder.com/150?text=3', desc: 'Item 3' },
-      { img: 'https://via.placeholder.com/150?text=4', desc: 'Item 4' }
+      { img: 'https://via.placeholder.com/150?text=1', name: 'Character 1', desc: 'This is character 1.' },
+      { img: 'https://via.placeholder.com/150?text=2', name: 'Character 2', desc: 'This is character 2.' },
+      { img: 'https://via.placeholder.com/150?text=3', name: 'Character 3', desc: 'This is character 3.' },
+      { img: 'https://via.placeholder.com/150?text=4', name: 'Character 4', desc: 'This is character 4.' }
     ];
 
     // Initialize sorting variables
@@ -43,6 +45,8 @@
     const card2 = document.getElementById('card2');
     const card1Img = document.getElementById('card1-img');
     const card2Img = document.getElementById('card2-img');
+    const card1Name = document.getElementById('card1-name');
+    const card2Name = document.getElementById('card2-name');
     const card1Desc = document.getElementById('card1-desc');
     const card2Desc = document.getElementById('card2-desc');
     const status = document.getElementById('status');
@@ -58,8 +62,11 @@
       if (left.length > 1) {
         const [item1, item2] = left.splice(0, 2);
         card1Img.src = item1.img;
+        card1Name.textContent = item1.name;
         card1Desc.textContent = item1.desc;
+
         card2Img.src = item2.img;
+        card2Name.textContent = item2.name;
         card2Desc.textContent = item2.desc;
 
         card1.onclick = () => {
@@ -78,12 +85,15 @@
 
     function renderSortedList() {
       const sortedList = document.createElement('div');
-      sortedList.classList.add('mt-4', 'text-left');
+      sortedList.classList.add('mt-6', 'text-left');
       sortedList.innerHTML = '<h2 class="text-xl font-bold">Sorted List:</h2>';
       sorted.forEach((item, index) => {
         const listItem = document.createElement('div');
-        listItem.classList.add('mb-2');
-        listItem.innerHTML = `<strong>#${index + 1}</strong>: ${item.desc}`;
+        listItem.classList.add('mb-3', 'flex', 'items-center');
+        listItem.innerHTML = `
+          <img class="w-12 h-12 object-cover rounded-md mr-3" src="${item.img}" alt="${item.name}">
+          <strong class="text-lg">#${index + 1}</strong>: ${item.name}
+        `;
         sortedList.appendChild(listItem);
       });
       document.body.appendChild(sortedList);
