@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.1</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.2</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
 
@@ -49,7 +49,16 @@
       }
     }
 
-    shuffle(items);
+    // Check if there's a saved state
+    const savedState = JSON.parse(localStorage.getItem('mergeState'));
+    if (savedState) {
+      items = savedState.items;
+      currentLeft = savedState.currentLeft;
+      currentRight = savedState.currentRight;
+      currentMerge = savedState.currentMerge;
+    } else {
+      shuffle(items);
+    }
 
     // Merge Sort logic with user input
     let currentLeft = [];
@@ -94,6 +103,7 @@
     function displayNextComparison() {
       if (currentLeft.length === 0 && currentRight.length === 0) {
         mergeCallback(currentMerge);
+        saveState();
         return;
       }
 
@@ -129,8 +139,18 @@
       }
     }
 
+    function saveState() {
+      localStorage.setItem('mergeState', JSON.stringify({
+        items,
+        currentLeft,
+        currentRight,
+        currentMerge
+      }));
+    }
+
     async function startSorting() {
       const sorted = await mergeSort(items);
+      localStorage.removeItem('mergeState'); // Clear state after sorting
       renderSortedList(sorted);
     }
 
@@ -153,5 +173,4 @@
     // Start sorting on load
     startSorting();
   </script>
-</body>
-</html>
+</body
