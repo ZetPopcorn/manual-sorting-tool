@@ -40,9 +40,11 @@
       { img: 'https://f2.toyhou.se/file/f2-toyhou-se/images/89976293_nM49jQN58dFX060.png', name: 'Mortala', desc: 'Character Mortala.' }
     ];
 
-    // Initialize sorting variables
-    let sorted = [];
-    let left = [...items];
+    // Merge Sort logic with user input
+    let currentLeft = [];
+    let currentRight = [];
+    let currentMerge = [];
+    let isComparing = false;
 
     // UI Elements
     const card1 = document.getElementById('card1');
@@ -55,39 +57,72 @@
     const card2Desc = document.getElementById('card2-desc');
     const status = document.getElementById('status');
 
-    function displayNextPair() {
-      if (left.length === 1) {
-        sorted.push(left.pop());
-        status.textContent = 'Sorting Complete!';
-        renderSortedList();
+    // Recursive merge sort
+    function mergeSort(array) {
+      if (array.length <= 1) return array;
+
+      const mid = Math.floor(array.length / 2);
+      const left = array.slice(0, mid);
+      const right = array.slice(mid);
+
+      return merge(mergeSort(left), mergeSort(right));
+    }
+
+    // Merge two arrays with user input
+    function merge(left, right) {
+      currentLeft = left;
+      currentRight = right;
+      currentMerge = [];
+      isComparing = true;
+
+      displayNextComparison();
+      return currentMerge;
+    }
+
+    function displayNextComparison() {
+      if (currentLeft.length === 0 && currentRight.length === 0) {
+        isComparing = false;
         return;
       }
 
-      if (left.length > 1) {
-        const [item1, item2] = left.splice(0, 2);
-        card1Img.src = item1.img;
-        card1Name.textContent = item1.name;
-        card1Desc.textContent = item1.desc;
+      if (currentLeft.length > 0 && currentRight.length > 0) {
+        const leftItem = currentLeft[0];
+        const rightItem = currentRight[0];
 
-        card2Img.src = item2.img;
-        card2Name.textContent = item2.name;
-        card2Desc.textContent = item2.desc;
+        card1Img.src = leftItem.img;
+        card1Name.textContent = leftItem.name;
+        card1Desc.textContent = leftItem.desc;
+
+        card2Img.src = rightItem.img;
+        card2Name.textContent = rightItem.name;
+        card2Desc.textContent = rightItem.desc;
 
         card1.onclick = () => {
-          sorted.push(item1);
-          left.unshift(item2);
-          displayNextPair();
+          currentMerge.push(currentLeft.shift());
+          displayNextComparison();
         };
 
         card2.onclick = () => {
-          sorted.push(item2);
-          left.unshift(item1);
-          displayNextPair();
+          currentMerge.push(currentRight.shift());
+          displayNextComparison();
         };
+      } else if (currentLeft.length > 0) {
+        currentMerge.push(...currentLeft);
+        currentLeft = [];
+        displayNextComparison();
+      } else if (currentRight.length > 0) {
+        currentMerge.push(...currentRight);
+        currentRight = [];
+        displayNextComparison();
       }
     }
 
-    function renderSortedList() {
+    function startSorting() {
+      const sorted = mergeSort(items);
+      renderSortedList(sorted);
+    }
+
+    function renderSortedList(sorted) {
       const sortedList = document.createElement('div');
       sortedList.classList.add('mt-6', 'text-left');
       sortedList.innerHTML = '<h2 class="text-xl font-bold">Sorted List:</h2>';
@@ -103,8 +138,8 @@
       document.body.appendChild(sortedList);
     }
 
-    // Start sorting
-    displayNextPair();
+    // Start sorting on load
+    startSorting();
   </script>
 </body>
 </html>
