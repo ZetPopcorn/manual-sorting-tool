@@ -44,7 +44,7 @@
     let currentLeft = [];
     let currentRight = [];
     let currentMerge = [];
-    let isComparing = false;
+    let mergeCallback = null;
 
     // UI Elements
     const card1 = document.getElementById('card1');
@@ -73,15 +73,16 @@
       currentLeft = left;
       currentRight = right;
       currentMerge = [];
-      isComparing = true;
 
-      displayNextComparison();
-      return currentMerge;
+      return new Promise((resolve) => {
+        mergeCallback = resolve;
+        displayNextComparison();
+      });
     }
 
     function displayNextComparison() {
       if (currentLeft.length === 0 && currentRight.length === 0) {
-        isComparing = false;
+        mergeCallback(currentMerge);
         return;
       }
 
@@ -117,8 +118,8 @@
       }
     }
 
-    function startSorting() {
-      const sorted = mergeSort(items);
+    async function startSorting() {
+      const sorted = await mergeSort(items);
       renderSortedList(sorted);
     }
 
