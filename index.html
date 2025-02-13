@@ -59,14 +59,14 @@
     const status = document.getElementById('status');
 
     // Recursive merge sort
-    function mergeSort(array) {
+    async function mergeSort(array) {
       if (array.length <= 1) return array;
 
       const mid = Math.floor(array.length / 2);
-      const left = array.slice(0, mid);
-      const right = array.slice(mid);
+      const left = await mergeSort(array.slice(0, mid));
+      const right = await mergeSort(array.slice(mid));
 
-      return merge(mergeSort(left), mergeSort(right));
+      return await merge(left, right);
     }
 
     // Merge two arrays with user input
