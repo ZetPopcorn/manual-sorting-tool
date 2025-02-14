@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1.94</div>
+  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1</div>
   <div class="container mx-auto p-4 text-center text-white">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -157,8 +157,9 @@
     // Display the next comparison.
     function displayNextComparison() {
       updateUndoButton();
-      // Only check for incomplete progress if we're at the top-level.
+      // If both arrays are empty...
       if (currentLeft.length === 0 && currentRight.length === 0) {
+        // If we're at the top-level, check that progress is complete.
         if (currentIsTopLevel) {
           if (currentMerge.length < items.length) {
             alert("Incomplete progress detected. Restarting sort to avoid inconsistent state.");
@@ -172,8 +173,12 @@
             return;
           }
         } else {
-          mergeCallback(currentMerge);
-          saveState();
+          // If in a submerge, we want to resume interactive mode.
+          // Since mergeCallback isn't persisted, we cannot resume a submerge reliably.
+          // Therefore, force a restart for submerge states.
+          alert("Mid-merge progress cannot be resumed reliably. Restarting sort.");
+          clearState();
+          window.location.reload();
           return;
         }
       }
@@ -280,6 +285,13 @@
         shuffle(items);
         const saved = loadState();
         if (saved) {
+          // If the saved state is not at the top level, force a restart.
+          if (!saved.currentIsTopLevel) {
+            alert("Resuming mid-merge is not supported. Restarting sort.");
+            clearState();
+            window.location.reload();
+            return;
+          }
           sortingComplete = saved.complete;
           currentLeft = saved.currentLeft;
           currentRight = saved.currentRight;
