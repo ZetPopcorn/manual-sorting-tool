@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.2<br>
+    Version 0.05.3<br>
     Progress: ~0%
   </div>
   
@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.2<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.3<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -200,13 +200,11 @@
       if (currentMergeState && currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
-
         // Update card images and names
         card1Img.src = leftItem.img;
         card1Name.textContent = leftItem.name;
         card2Img.src = rightItem.img;
         card2Name.textContent = rightItem.name;
-
         // Update description boxes
         desc1.innerHTML =
           `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
@@ -216,19 +214,18 @@
           `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
           `<h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4>` +
           rightItem.desc;
-
         status.textContent = "Choose your favorite character!";
       }
     }
 
-    /* ========= Auto-Resolve via Preset Ranking (Inline in Loop) ========= */
+    /* ========= Auto-Resolve via Preset Ranking ========= */
     function getRank(item) {
       if (!presetRanking) return Infinity;
       const index = presetRanking.indexOf(item.name);
       return index === -1 ? Infinity : index;
     }
 
-    /* ========= Iterative Merge Sort Functions ========= */
+    /* ========= Iterative Merge Sort (Yielding Control) ========= */
     function startMerge() {
       currentMergeState = {
         left: runs[mergeIndex].slice(),   // copy of left run
@@ -237,20 +234,20 @@
       };
       saveState();
       updateUI();
-      // Let the loop in nextComparison process auto-resolves or UI update.
     }
 
-    // Convert recursive nextComparison into an iterative loop.
+    // Instead of a tight while(true) loop, we process one iteration and then schedule the next.
     function nextComparison() {
-      while (true) {
+      function processIteration() {
         // If no current merge, try starting one.
         if (!currentMergeState) {
           if (mergeIndex < runs.length - 1) {
             startMerge();
-            continue;
+            setTimeout(processIteration, 0);
+            return;
           }
         }
-        // If both sides still have items, try auto-resolving.
+        // If both sides have items, check for auto-resolve.
         if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
           const leftItem = currentMergeState.left[0];
           const rightItem = currentMergeState.right[0];
@@ -259,31 +256,27 @@
             const rightRank = getRank(rightItem);
             // Only auto-resolve if both items are ranked.
             if (leftRank !== Infinity && rightRank !== Infinity) {
+              // Save state for undo.
+              undoStack.push(cloneState());
+              updateUndoButton();
               if (leftRank < rightRank) {
-                undoStack.push(cloneState());
-                updateUndoButton();
                 currentMergeState.left.shift();
                 currentMergeState.merged.push(leftItem);
-                progress = Math.min(100, progress + progressIncrement);
-                updateProgressDisplay();
-                saveState();
-                continue;
               } else if (rightRank < leftRank) {
-                undoStack.push(cloneState());
-                updateUndoButton();
                 currentMergeState.right.shift();
                 currentMergeState.merged.push(rightItem);
-                progress = Math.min(100, progress + progressIncrement);
-                updateProgressDisplay();
-                saveState();
-                continue;
               }
-              // If equal, fall through to manual UI.
+              progress = Math.min(100, progress + progressIncrement);
+              updateProgressDisplay();
+              saveState();
+              // Process next iteration.
+              setTimeout(processIteration, 0);
+              return;
             }
           }
-          // Break out of the loop to display the UI for manual input.
+          // If not auto-resolved, break to allow manual input.
           updateUI();
-          break;
+          return;
         } else {
           // One side is empty; finish this merge.
           if (currentMergeState.left.length === 0) {
@@ -303,16 +296,17 @@
             mergeIndex = 0;
           }
           saveState();
-          // If only one run remains, finish sorting.
           if (runs.length === 1) {
             sortingComplete = true;
             renderSortedList(runs[0]);
             return;
           }
-          // Continue the loop to start the next merge.
-          continue;
+          // Continue processing.
+          setTimeout(processIteration, 0);
+          return;
         }
       }
+      setTimeout(processIteration, 0);
     }
 
     // Manual left card click.
@@ -343,12 +337,10 @@
 
     /* ========= Final Render ========= */
     function renderSortedList(sorted) {
-      // Hide interactive elements.
       document.getElementById('card-container').style.display = 'none';
       document.getElementById('description-container').style.display = 'none';
       undoButton.style.display = 'none';
       status.style.display = 'none';
-      // Create a container for the sorted list.
       const sortedList = document.createElement('div');
       sortedList.classList.add('mt-6', 'text-center');
       const header = document.createElement('h2');
@@ -369,7 +361,6 @@
 
     /* ========= Ranking Modal Functions ========= */
     function populateRankingModal() {
-      // Initialize available and favorite arrays.
       availableRanking = items.slice();
       favoriteRanking = [];
       renderAvailableList();
@@ -458,18 +449,14 @@
         }
         items = await response.json();
         console.log('Fetched items:', items);
-        // Shuffle items (Fisher-Yates)
         for (let i = items.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [items[i], items[j]] = [items[j], items[i]];
         }
-        // Estimate total comparisons as n * log2(n)
         totalComparisons = items.length * Math.log2(items.length);
         progressIncrement = totalComparisons ? (100 / totalComparisons) : 100;
         
         updateProgressDisplay();
-
-        // Initialize runs as individual items.
         runs = items.map(item => [item]);
         mergeIndex = 0;
         currentMergeState = null;
