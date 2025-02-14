@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05<br>
+    Version 0.05.1<br>
     Progress: ~0%
   </div>
   
@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.1<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -273,8 +273,8 @@
         if (presetRanking && presetRanking.length > 0) {
           const leftRank = getRank(leftItem);
           const rightRank = getRank(rightItem);
-          // If at least one is ranked, auto-resolve:
-          if (leftRank !== Infinity || rightRank !== Infinity) {
+          // Only auto-resolve if both items are ranked.
+          if (leftRank !== Infinity && rightRank !== Infinity) {
             if (leftRank < rightRank) {
               autoResolveComparison('left');
               return;
