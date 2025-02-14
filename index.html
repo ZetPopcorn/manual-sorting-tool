@@ -7,22 +7,28 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.94</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.92</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
     <!-- Cards for user selection -->
-    <div id="card-container" class="flex items-center justify-center gap-8 mb-6 w-full">
-      <div id="card1" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2">
-        <img id="card1-img" class="w-full h-auto object-contain mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 1" />
+    <div id="card-container" class="flex items-stretch justify-center gap-8 mb-6 w-full">
+      <!-- Card 1 -->
+      <div id="card1" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2 flex flex-col">
+        <div class="image-container h-64 flex items-center justify-center mb-4">
+          <img id="card1-img" class="max-h-full object-contain" src="https://via.placeholder.com/150" alt="Character 1" />
+        </div>
         <h2 id="card1-name" class="text-lg font-semibold mb-2">Character Name 1</h2>
-        <!-- Use a div so innerHTML can work -->
-        <div id="card1-desc" class="text-sm text-gray-600"></div>
+        <div id="card1-desc" class="text-sm text-gray-600 p-2 border rounded bg-gray-50 overflow-auto max-h-40"></div>
       </div>
-      <div id="card2" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2">
-        <img id="card2-img" class="w-full h-auto object-contain mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 2" />
+      
+      <!-- Card 2 -->
+      <div id="card2" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2 flex flex-col">
+        <div class="image-container h-64 flex items-center justify-center mb-4">
+          <img id="card2-img" class="max-h-full object-contain" src="https://via.placeholder.com/150" alt="Character 2" />
+        </div>
         <h2 id="card2-name" class="text-lg font-semibold mb-2">Character Name 2</h2>
-        <div id="card2-desc" class="text-sm text-gray-600"></div>
+        <div id="card2-desc" class="text-sm text-gray-600 p-2 border rounded bg-gray-50 overflow-auto max-h-40"></div>
       </div>
     </div>
 
@@ -43,7 +49,7 @@
       }
     }
     
-    // Variables for state
+    // State variables
     let currentLeft = [];
     let currentRight = [];
     let currentMerge = [];
@@ -71,7 +77,7 @@
       };
     }
     
-    // Update undo button state
+    // Update undo button appearance
     function updateUndoButton() {
       if (undoStack.length > 0) {
         undoButton.disabled = false;
@@ -113,20 +119,19 @@
         const rightItem = currentRight[0];
         card1Img.src = leftItem.img;
         card1Name.textContent = leftItem.name;
-        // Use innerHTML so any HTML in the description is rendered
-        card1Desc.innerHTML = leftItem.desc;
-  
+        card1Desc.innerHTML = leftItem.desc; // Using innerHTML for HTML formatting
+        
         card2Img.src = rightItem.img;
         card2Name.textContent = rightItem.name;
         card2Desc.innerHTML = rightItem.desc;
-  
+        
         card1.onclick = () => {
           undoStack.push(cloneState());
           updateUndoButton();
           currentMerge.push(currentLeft.shift());
           displayNextComparison();
         };
-  
+        
         card2.onclick = () => {
           undoStack.push(cloneState());
           updateUndoButton();
@@ -179,11 +184,15 @@
       renderSortedList(sorted);
     }
     
-    // Fetch items from external JSON file
+    // Fetch items from external JSON file and start sorting
     async function init() {
       try {
         const response = await fetch('items.json');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
         items = await response.json();
+        console.log('Fetched items:', items); // Debug logging
         shuffle(items);
         startSorting();
       } catch (error) {
