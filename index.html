@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1.95</div>
+  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1.94</div>
   <div class="container mx-auto p-4 text-center text-white">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -157,24 +157,21 @@
     // Display the next comparison.
     function displayNextComparison() {
       updateUndoButton();
-
-      // If both arrays are empty...
+      // Only check for incomplete progress if we're at the top-level.
       if (currentLeft.length === 0 && currentRight.length === 0) {
-        // If the merged result doesn't include all items, our saved state is incomplete.
-        if (currentMerge.length < items.length) {
-          alert("Incomplete progress detected. Restarting sort to avoid inconsistent state.");
-          clearState();
-          window.location.reload();
-          return;
-        }
-        // Otherwise, if we're at the top level, finish.
         if (currentIsTopLevel) {
-          sortingComplete = true;
-          renderSortedList(currentMerge);
-          saveState();
-          return;
+          if (currentMerge.length < items.length) {
+            alert("Incomplete progress detected. Restarting sort to avoid inconsistent state.");
+            clearState();
+            window.location.reload();
+            return;
+          } else {
+            sortingComplete = true;
+            renderSortedList(currentMerge);
+            saveState();
+            return;
+          }
         } else {
-          // For submerges, resolve the promise.
           mergeCallback(currentMerge);
           saveState();
           return;
