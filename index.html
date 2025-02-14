@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.93</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.94</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -16,12 +16,13 @@
       <div id="card1" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2">
         <img id="card1-img" class="w-full h-auto object-contain mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 1" />
         <h2 id="card1-name" class="text-lg font-semibold mb-2">Character Name 1</h2>
-        <p id="card1-desc" class="text-sm text-gray-600">Description 1</p>
+        <!-- Use a div so innerHTML can work -->
+        <div id="card1-desc" class="text-sm text-gray-600"></div>
       </div>
       <div id="card2" class="card bg-white shadow-lg rounded-lg p-4 cursor-pointer hover:shadow-xl transition-shadow w-1/2">
         <img id="card2-img" class="w-full h-auto object-contain mx-auto rounded-md mb-4" src="https://via.placeholder.com/150" alt="Character 2" />
         <h2 id="card2-name" class="text-lg font-semibold mb-2">Character Name 2</h2>
-        <p id="card2-desc" class="text-sm text-gray-600">Description 2</p>
+        <div id="card2-desc" class="text-sm text-gray-600"></div>
       </div>
     </div>
 
@@ -30,165 +31,167 @@
     <button id="undoButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded opacity-50 cursor-not-allowed" disabled>Undo</button>
   </div>
 
-<script>
-  // Declare items variable; it will be loaded from items.json
-  let items = [];
-
-  // Shuffle function remains the same
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+  <script>
+    // 'items' will be loaded from items.json
+    let items = [];
+    
+    // Shuffle function
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
     }
-  }
-
-  // The rest of your code (state variables, UI elements, merge sort, etc.) remains unchanged...
-  let currentLeft = [];
-  let currentRight = [];
-  let currentMerge = [];
-  let mergeCallback = null;
-  let undoStack = [];
-
-  const card1 = document.getElementById('card1');
-  const card2 = document.getElementById('card2');
-  const card1Img = document.getElementById('card1-img');
-  const card2Img = document.getElementById('card2-img');
-  const card1Name = document.getElementById('card1-name');
-  const card2Name = document.getElementById('card2-name');
-  const card1Desc = document.getElementById('card1-desc');
-  const card2Desc = document.getElementById('card2-desc');
-  const status = document.getElementById('status');
-  const undoButton = document.getElementById('undoButton');
-
-  function cloneState() {
-    return {
-      left: currentLeft.slice(),
-      right: currentRight.slice(),
-      merge: currentMerge.slice()
+    
+    // Variables for state
+    let currentLeft = [];
+    let currentRight = [];
+    let currentMerge = [];
+    let mergeCallback = null;
+    let undoStack = [];
+    
+    // UI Elements
+    const card1 = document.getElementById('card1');
+    const card2 = document.getElementById('card2');
+    const card1Img = document.getElementById('card1-img');
+    const card2Img = document.getElementById('card2-img');
+    const card1Name = document.getElementById('card1-name');
+    const card2Name = document.getElementById('card2-name');
+    const card1Desc = document.getElementById('card1-desc');
+    const card2Desc = document.getElementById('card2-desc');
+    const status = document.getElementById('status');
+    const undoButton = document.getElementById('undoButton');
+    
+    // Clone state for undo functionality
+    function cloneState() {
+      return {
+        left: currentLeft.slice(),
+        right: currentRight.slice(),
+        merge: currentMerge.slice()
+      };
+    }
+    
+    // Update undo button state
+    function updateUndoButton() {
+      if (undoStack.length > 0) {
+        undoButton.disabled = false;
+        undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      } else {
+        undoButton.disabled = true;
+        undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    
+    // Merge sort with user input
+    async function mergeSort(array) {
+      if (array.length <= 1) return array;
+      const mid = Math.floor(array.length / 2);
+      const left = await mergeSort(array.slice(0, mid));
+      const right = await mergeSort(array.slice(mid));
+      return await merge(left, right);
+    }
+    
+    function merge(left, right) {
+      currentLeft = left;
+      currentRight = right;
+      currentMerge = [];
+      undoStack = [];
+      return new Promise((resolve) => {
+        mergeCallback = resolve;
+        displayNextComparison();
+      });
+    }
+    
+    function displayNextComparison() {
+      updateUndoButton();
+      if (currentLeft.length === 0 && currentRight.length === 0) {
+        mergeCallback(currentMerge);
+        return;
+      }
+      if (currentLeft.length > 0 && currentRight.length > 0) {
+        const leftItem = currentLeft[0];
+        const rightItem = currentRight[0];
+        card1Img.src = leftItem.img;
+        card1Name.textContent = leftItem.name;
+        // Use innerHTML so any HTML in the description is rendered
+        card1Desc.innerHTML = leftItem.desc;
+  
+        card2Img.src = rightItem.img;
+        card2Name.textContent = rightItem.name;
+        card2Desc.innerHTML = rightItem.desc;
+  
+        card1.onclick = () => {
+          undoStack.push(cloneState());
+          updateUndoButton();
+          currentMerge.push(currentLeft.shift());
+          displayNextComparison();
+        };
+  
+        card2.onclick = () => {
+          undoStack.push(cloneState());
+          updateUndoButton();
+          currentMerge.push(currentRight.shift());
+          displayNextComparison();
+        };
+      } else if (currentLeft.length > 0) {
+        undoStack.push(cloneState());
+        updateUndoButton();
+        currentMerge.push(...currentLeft);
+        currentLeft = [];
+        displayNextComparison();
+      } else if (currentRight.length > 0) {
+        undoStack.push(cloneState());
+        updateUndoButton();
+        currentMerge.push(...currentRight);
+        currentRight = [];
+        displayNextComparison();
+      }
+    }
+    
+    undoButton.onclick = () => {
+      if (undoStack.length > 0) {
+        const prevState = undoStack.pop();
+        currentLeft = prevState.left;
+        currentRight = prevState.right;
+        currentMerge = prevState.merge;
+        displayNextComparison();
+      }
     };
-  }
-
-  function updateUndoButton() {
-    if (undoStack.length > 0) {
-      undoButton.disabled = false;
-      undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else {
-      undoButton.disabled = true;
-      undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    function renderSortedList(sorted) {
+      const sortedList = document.createElement('div');
+      sortedList.classList.add('mt-6', 'text-left');
+      sortedList.innerHTML = '<h2 class="text-xl font-bold">Sorted List:</h2>';
+      sorted.forEach((item, index) => {
+        const listItem = document.createElement('div');
+        listItem.classList.add('mb-3', 'flex', 'items-center');
+        listItem.innerHTML = `
+          <img class="w-12 h-12 object-cover rounded-md mr-3" src="${item.img}" alt="${item.name}">
+          <strong class="text-lg">#${index + 1}</strong>: ${item.name}
+        `;
+        sortedList.appendChild(listItem);
+      });
+      document.body.appendChild(sortedList);
     }
-  }
-
-  async function mergeSort(array) {
-    if (array.length <= 1) return array;
-
-    const mid = Math.floor(array.length / 2);
-    const left = await mergeSort(array.slice(0, mid));
-    const right = await mergeSort(array.slice(mid));
-    return await merge(left, right);
-  }
-
-  function merge(left, right) {
-    currentLeft = left;
-    currentRight = right;
-    currentMerge = [];
-    undoStack = [];
-    return new Promise((resolve) => {
-      mergeCallback = resolve;
-      displayNextComparison();
-    });
-  }
-
-  function displayNextComparison() {
-    updateUndoButton();
-    if (currentLeft.length === 0 && currentRight.length === 0) {
-      mergeCallback(currentMerge);
-      return;
+    
+    async function startSorting() {
+      const sorted = await mergeSort(items);
+      renderSortedList(sorted);
     }
-    if (currentLeft.length > 0 && currentRight.length > 0) {
-      const leftItem = currentLeft[0];
-      const rightItem = currentRight[0];
-
-      card1Img.src = leftItem.img;
-      card1Name.textContent = leftItem.name;
-      // If you have HTML in your description, consider using innerHTML:
-      card1Desc.textContent = leftItem.desc;
-
-      card2Img.src = rightItem.img;
-      card2Name.textContent = rightItem.name;
-      card2Desc.textContent = rightItem.desc;
-
-      card1.onclick = () => {
-        undoStack.push(cloneState());
-        updateUndoButton();
-        currentMerge.push(currentLeft.shift());
-        displayNextComparison();
-      };
-
-      card2.onclick = () => {
-        undoStack.push(cloneState());
-        updateUndoButton();
-        currentMerge.push(currentRight.shift());
-        displayNextComparison();
-      };
-    } else if (currentLeft.length > 0) {
-      undoStack.push(cloneState());
-      updateUndoButton();
-      currentMerge.push(...currentLeft);
-      currentLeft = [];
-      displayNextComparison();
-    } else if (currentRight.length > 0) {
-      undoStack.push(cloneState());
-      updateUndoButton();
-      currentMerge.push(...currentRight);
-      currentRight = [];
-      displayNextComparison();
+    
+    // Fetch items from external JSON file
+    async function init() {
+      try {
+        const response = await fetch('items.json');
+        items = await response.json();
+        shuffle(items);
+        startSorting();
+      } catch (error) {
+        console.error('Error fetching items:', error);
+      }
     }
-  }
-
-  undoButton.onclick = () => {
-    if (undoStack.length > 0) {
-      const prevState = undoStack.pop();
-      currentLeft = prevState.left;
-      currentRight = prevState.right;
-      currentMerge = prevState.merge;
-      displayNextComparison();
-    }
-  };
-
-  function renderSortedList(sorted) {
-    const sortedList = document.createElement('div');
-    sortedList.classList.add('mt-6', 'text-left');
-    sortedList.innerHTML = '<h2 class="text-xl font-bold">Sorted List:</h2>';
-    sorted.forEach((item, index) => {
-      const listItem = document.createElement('div');
-      listItem.classList.add('mb-3', 'flex', 'items-center');
-      listItem.innerHTML = `
-        <img class="w-12 h-12 object-cover rounded-md mr-3" src="${item.img}" alt="${item.name}">
-        <strong class="text-lg">#${index + 1}</strong>: ${item.name}
-      `;
-      sortedList.appendChild(listItem);
-    });
-    document.body.appendChild(sortedList);
-  }
-
-  async function startSorting() {
-    const sorted = await mergeSort(items);
-    renderSortedList(sorted);
-  }
-
-  // Fetch the items from the external JSON file and start the sorting process
-  async function init() {
-    try {
-      const response = await fetch('items.json');
-      items = await response.json();
-      shuffle(items);
-      startSorting();
-    } catch (error) {
-      console.error('Error fetching items:', error);
-    }
-  }
-
-  init();
-</script>
+    
+    init();
+  </script>
 </body>
 </html>
