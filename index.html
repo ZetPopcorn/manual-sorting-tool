@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.2<br>
+    Version 0.05.1<br>
     Progress: ~0%
   </div>
   
@@ -258,16 +258,14 @@
     }
 
     function nextComparison() {
-      // If no merge is in progress, ensure we start a new merge round.
+      // If not already in a merge, start one if possible
       if (!currentMergeState) {
-        if (mergeIndex >= runs.length - 1) {
-          mergeIndex = 0; // reset for a new round of merges
+        if (mergeIndex < runs.length - 1) {
+          startMerge();
+          return;
         }
-        startMerge();
-        return;
       }
-  
-  // If both arrays have items, check for auto-resolve based on preset ranking
+      // If both arrays have items, check for auto-resolve based on preset ranking
       if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
