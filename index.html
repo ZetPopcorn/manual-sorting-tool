@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Manual Sorting Tool</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Style paragraphs within the description boxes */
+    #desc1 p, #desc2 p {
+      text-indent: 2em;
+      margin-bottom: 1em;
+      line-height: 1.6;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen relative">
   <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.92</div>
@@ -62,7 +70,6 @@
     const card2Img = document.getElementById('card2-img');
     const card1Name = document.getElementById('card1-name');
     const card2Name = document.getElementById('card2-name');
-    // Remove description from inside the cards
     const desc1 = document.getElementById('desc1');
     const desc2 = document.getElementById('desc2');
     const status = document.getElementById('status');
@@ -195,7 +202,7 @@
           throw new Error('Network response was not ok');
         }
         items = await response.json();
-        console.log('Fetched items:', items); // Debug logging
+        console.log('Fetched items:', items);
         shuffle(items);
         startSorting();
       } catch (error) {
