@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.92</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.96</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -173,13 +173,11 @@
       }
     };
     
-    // Render the sorted list as just images
+    // Render the sorted list as just names
     function renderSortedList(sorted) {
-      // Hide the card and description containers
+      // Hide the card and description containers, undo button, and status
       document.getElementById('card-container').style.display = 'none';
       document.getElementById('description-container').style.display = 'none';
-      
-      // Optionally hide the undo button and status
       undoButton.style.display = 'none';
       status.style.display = 'none';
       
@@ -187,14 +185,21 @@
       const sortedList = document.createElement('div');
       sortedList.classList.add('mt-6', 'text-center');
       
-      // Append only the images
-      sorted.forEach((item) => {
-        const img = document.createElement('img');
-        img.src = item.img;
-        img.className = "inline-block w-32 h-auto object-contain m-2 rounded-md";
-        sortedList.appendChild(img);
-      });
+      // Header
+      const header = document.createElement('h2');
+      header.className = "text-xl font-bold mb-4";
+      header.textContent = "Sorted List:";
+      sortedList.appendChild(header);
       
+      // Create a list of names (one per line)
+      const list = document.createElement('ul');
+      sorted.forEach((item) => {
+        const li = document.createElement('li');
+        li.className = "text-lg";
+        li.textContent = item.name;
+        list.appendChild(li);
+      });
+      sortedList.appendChild(list);
       document.body.appendChild(sortedList);
     }
     
