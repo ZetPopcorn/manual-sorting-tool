@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.93</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.92</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -173,19 +173,28 @@
       }
     };
     
+    // Render the sorted list as just images
     function renderSortedList(sorted) {
+      // Hide the card and description containers
+      document.getElementById('card-container').style.display = 'none';
+      document.getElementById('description-container').style.display = 'none';
+      
+      // Optionally hide the undo button and status
+      undoButton.style.display = 'none';
+      status.style.display = 'none';
+      
+      // Create a container for the sorted list
       const sortedList = document.createElement('div');
-      sortedList.classList.add('mt-6', 'text-left');
-      sortedList.innerHTML = '<h2 class="text-xl font-bold">Sorted List:</h2>';
-      sorted.forEach((item, index) => {
-        const listItem = document.createElement('div');
-        listItem.classList.add('mb-3', 'flex', 'items-center');
-        listItem.innerHTML = `
-          <img class="w-12 h-12 object-cover rounded-md mr-3" src="${item.img}" alt="${item.name}">
-          <strong class="text-lg">#${index + 1}</strong>: ${item.name}
-        `;
-        sortedList.appendChild(listItem);
+      sortedList.classList.add('mt-6', 'text-center');
+      
+      // Append only the images
+      sorted.forEach((item) => {
+        const img = document.createElement('img');
+        img.src = item.img;
+        img.className = "inline-block w-32 h-auto object-contain m-2 rounded-md";
+        sortedList.appendChild(img);
       });
+      
       document.body.appendChild(sortedList);
     }
     
