@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1.69</div>
+  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 1.94</div>
   <div class="container mx-auto p-4 text-center text-white">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -157,20 +157,15 @@
     // Display the next comparison.
     function displayNextComparison() {
       updateUndoButton();
-      // If no merge callback exists (e.g., after a page reload), treat this as top-level.
-      if (typeof mergeCallback !== 'function') {
-        currentIsTopLevel = true;
-      }
+      // When both arrays are empty, use mergeCallback if defined; otherwise assume top-level.
       if (currentLeft.length === 0 && currentRight.length === 0) {
-        if (currentIsTopLevel) {
+        if (!mergeCallback || currentIsTopLevel) {
           sortingComplete = true;
           renderSortedList(currentMerge);
           saveState();
           return;
         } else {
-          // If we're in a submerge but mergeCallback isn't defined, treat as top-level.
-          sortingComplete = true;
-          renderSortedList(currentMerge);
+          mergeCallback(currentMerge);
           saveState();
           return;
         }
