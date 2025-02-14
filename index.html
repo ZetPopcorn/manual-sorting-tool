@@ -258,14 +258,16 @@
     }
 
     function nextComparison() {
-      // If not already in a merge, start one if possible
+      // If no merge is in progress, ensure we start a new merge round.
       if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
+        if (mergeIndex >= runs.length - 1) {
+          mergeIndex = 0; // reset for a new round of merges
         }
+        startMerge();
+        return;
       }
-      // If both arrays have items, check for auto-resolve based on preset ranking
+  
+  // If both arrays have items, check for auto-resolve based on preset ranking
       if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
