@@ -1,0 +1,18 @@
+[
+  {
+    "img": "https://f2.toyhou.se/file/f2-toyhou-se/images/89173039_pzcWlIoRCLFLPiT.png",
+    "name": "Zet",
+    "desc": "Character Zet."
+  },
+  {
+    "img": "https://f2.toyhou.se/file/f2-toyhou-se/images/92817037_EWkZ8h5a1bY5eK6.png",
+    "name": "Shine",
+    "desc": "Character Shine."
+  },
+  {
+    "img": "https://f2.toyhou.se/file/f2-toyhou-se/images/89160094_tfAbfPoFCnM4Lip.png",
+    "name": "Syl",
+    "desc": "Character Syl."
+  }
+  // ... all your other items here
+]
