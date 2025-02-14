@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.1<br>
+    Version 0.05.2<br>
     Progress: ~0%
   </div>
   
@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.1<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.2<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -241,7 +241,8 @@
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
-      nextComparison();
+      // Use setTimeout to yield back to the UI thread.
+      setTimeout(nextComparison, 0);
     }
 
     /* ========= Iterative Merge Sort Functions ========= */
@@ -254,7 +255,7 @@
       saveState();
       updateUI();
       // Immediately check for auto-resolve if a preset ranking exists:
-      nextComparison();
+      setTimeout(nextComparison, 0);
     }
 
     function nextComparison() {
@@ -315,7 +316,8 @@
           renderSortedList(runs[0]);
           return;
         }
-        nextComparison();
+        // Use setTimeout here to allow UI to update before the next merge.
+        setTimeout(nextComparison, 0);
       }
     }
 
@@ -329,7 +331,7 @@
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
-      nextComparison();
+      setTimeout(nextComparison, 0);
     };
 
     // Manual right card click
@@ -342,7 +344,7 @@
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
-      nextComparison();
+      setTimeout(nextComparison, 0);
     };
 
     /* ========= Final Render ========= */
@@ -446,7 +448,7 @@
       saveState();
       // Begin merge sort comparisons.
       if (runs.length > 1) {
-        nextComparison();
+        setTimeout(nextComparison, 0);
       }
     });
 
@@ -456,7 +458,7 @@
       rankingModal.style.display = "none";
       saveState();
       if (runs.length > 1) {
-        nextComparison();
+        setTimeout(nextComparison, 0);
       }
     });
 
@@ -507,7 +509,7 @@
             if (presetRanking === null) {
               showRankingModal();
             } else {
-              nextComparison();
+              setTimeout(nextComparison, 0);
             }
           }
         } else {
