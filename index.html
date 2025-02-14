@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.3<br>
+    Version 0.05.2<br>
     Progress: ~0%
   </div>
   
@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.3<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.2<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -221,118 +221,103 @@
       }
     }
 
-    /* ========= Auto-Resolve via Preset Ranking ========= */
+    /* ========= Auto-Resolve via Preset Ranking (Inline in Loop) ========= */
     function getRank(item) {
       if (!presetRanking) return Infinity;
       const index = presetRanking.indexOf(item.name);
       return index === -1 ? Infinity : index;
     }
 
-    function autoResolveComparison(side) {
-      undoStack.push(cloneState());
-      updateUndoButton();
-      if (side === 'left') {
-        const chosen = currentMergeState.left.shift();
-        currentMergeState.merged.push(chosen);
-      } else {
-        const chosen = currentMergeState.right.shift();
-        currentMergeState.merged.push(chosen);
-      }
-      progress = Math.min(100, progress + progressIncrement);
-      updateProgressDisplay();
-      saveState();
-      // Delay slightly to yield control.
-      setTimeout(nextComparison, 10);
-    }
-
     /* ========= Iterative Merge Sort Functions ========= */
     function startMerge() {
-      // Safety check: if mergeIndex is too high, reset it.
-      if (mergeIndex >= runs.length - 1) {
-        mergeIndex = 0;
-      }
       currentMergeState = {
         left: runs[mergeIndex].slice(),   // copy of left run
         right: runs[mergeIndex + 1].slice(), // copy of right run
         merged: []
       };
-      console.log("Starting merge at mergeIndex:", mergeIndex, "runs length:", runs.length);
       saveState();
       updateUI();
-      setTimeout(nextComparison, 10);
+      // Let the loop in nextComparison process auto-resolves or UI update.
     }
 
+    // Convert recursive nextComparison into an iterative loop.
     function nextComparison() {
-      // If no current merge state, try to start one.
-      if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        }
-      }
-      // If both arrays have items, process auto-resolve or show UI.
-      if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
-        const leftItem = currentMergeState.left[0];
-        const rightItem = currentMergeState.right[0];
-
-        if (presetRanking && presetRanking.length > 0) {
-          const leftRank = getRank(leftItem);
-          const rightRank = getRank(rightItem);
-          // Only auto-resolve if both items are ranked.
-          if (leftRank !== Infinity && rightRank !== Infinity) {
-            if (leftRank < rightRank) {
-              autoResolveComparison('left');
-              return;
-            } else if (rightRank < leftRank) {
-              autoResolveComparison('right');
-              return;
-            }
-            // If equal, fall through.
+      while (true) {
+        // If no current merge, try starting one.
+        if (!currentMergeState) {
+          if (mergeIndex < runs.length - 1) {
+            startMerge();
+            continue;
           }
         }
-        updateUI();
-      } else {
-        // One side is empty; finish this merge.
-        if (currentMergeState.left.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.right);
-          currentMergeState.right = [];
+        // If both sides still have items, try auto-resolving.
+        if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
+          const leftItem = currentMergeState.left[0];
+          const rightItem = currentMergeState.right[0];
+          if (presetRanking && presetRanking.length > 0) {
+            const leftRank = getRank(leftItem);
+            const rightRank = getRank(rightItem);
+            // Only auto-resolve if both items are ranked.
+            if (leftRank !== Infinity && rightRank !== Infinity) {
+              if (leftRank < rightRank) {
+                undoStack.push(cloneState());
+                updateUndoButton();
+                currentMergeState.left.shift();
+                currentMergeState.merged.push(leftItem);
+                progress = Math.min(100, progress + progressIncrement);
+                updateProgressDisplay();
+                saveState();
+                continue;
+              } else if (rightRank < leftRank) {
+                undoStack.push(cloneState());
+                updateUndoButton();
+                currentMergeState.right.shift();
+                currentMergeState.merged.push(rightItem);
+                progress = Math.min(100, progress + progressIncrement);
+                updateProgressDisplay();
+                saveState();
+                continue;
+              }
+              // If equal, fall through to manual UI.
+            }
+          }
+          // Break out of the loop to display the UI for manual input.
+          updateUI();
+          break;
+        } else {
+          // One side is empty; finish this merge.
+          if (currentMergeState.left.length === 0) {
+            currentMergeState.merged.push(...currentMergeState.right);
+            currentMergeState.right = [];
+          }
+          if (currentMergeState.right.length === 0) {
+            currentMergeState.merged.push(...currentMergeState.left);
+            currentMergeState.left = [];
+          }
+          // Replace the two runs with the merged result.
+          runs[mergeIndex] = currentMergeState.merged;
+          runs.splice(mergeIndex + 1, 1);
+          currentMergeState = null;
+          mergeIndex++;
+          if (mergeIndex >= runs.length - 1) {
+            mergeIndex = 0;
+          }
+          saveState();
+          // If only one run remains, finish sorting.
+          if (runs.length === 1) {
+            sortingComplete = true;
+            renderSortedList(runs[0]);
+            return;
+          }
+          // Continue the loop to start the next merge.
+          continue;
         }
-        if (currentMergeState.right.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.left);
-          currentMergeState.left = [];
-        }
-        // Replace the two runs with the merged result.
-        runs[mergeIndex] = currentMergeState.merged;
-        runs.splice(mergeIndex + 1, 1);
-        console.log("Finished merge at index", mergeIndex, "new runs length:", runs.length);
-        currentMergeState = null;
-        mergeIndex++;
-
-        // If we've merged all adjacent pairs in this round, reset mergeIndex.
-        if (mergeIndex >= runs.length - 1) {
-          mergeIndex = 0;
-        }
-        saveState();
-
-        if (runs.length === 1) {
-          sortingComplete = true;
-          renderSortedList(runs[0]);
-          return;
-        }
-        setTimeout(nextComparison, 10);
       }
     }
 
-    // Manual click on left card.
+    // Manual left card click.
     card1.onclick = () => {
-      // If currentMergeState is null, try starting a new merge.
-      if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        }
-      }
-      if (currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
       undoStack.push(cloneState());
       updateUndoButton();
       const chosen = currentMergeState.left.shift();
@@ -340,18 +325,12 @@
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
-      setTimeout(nextComparison, 10);
+      nextComparison();
     };
 
-    // Manual click on right card.
+    // Manual right card click.
     card2.onclick = () => {
-      if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        }
-      }
-      if (currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
       undoStack.push(cloneState());
       updateUndoButton();
       const chosen = currentMergeState.right.shift();
@@ -359,7 +338,7 @@
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
-      setTimeout(nextComparison, 10);
+      nextComparison();
     };
 
     /* ========= Final Render ========= */
@@ -390,6 +369,7 @@
 
     /* ========= Ranking Modal Functions ========= */
     function populateRankingModal() {
+      // Initialize available and favorite arrays.
       availableRanking = items.slice();
       favoriteRanking = [];
       renderAvailableList();
@@ -456,7 +436,7 @@
       rankingModal.style.display = "none";
       saveState();
       if (runs.length > 1) {
-        setTimeout(nextComparison, 10);
+        nextComparison();
       }
     });
 
@@ -465,7 +445,7 @@
       rankingModal.style.display = "none";
       saveState();
       if (runs.length > 1) {
-        setTimeout(nextComparison, 10);
+        nextComparison();
       }
     });
 
@@ -473,22 +453,30 @@
     async function init() {
       try {
         const response = await fetch('items.json');
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
         items = await response.json();
         console.log('Fetched items:', items);
+        // Shuffle items (Fisher-Yates)
         for (let i = items.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [items[i], items[j]] = [items[j], items[i]];
         }
+        // Estimate total comparisons as n * log2(n)
         totalComparisons = items.length * Math.log2(items.length);
         progressIncrement = totalComparisons ? (100 / totalComparisons) : 100;
+        
         updateProgressDisplay();
+
+        // Initialize runs as individual items.
         runs = items.map(item => [item]);
         mergeIndex = 0;
         currentMergeState = null;
         progress = 0;
         undoStack = [];
         saveState();
+
         const saved = loadState();
         if (saved) {
           runs = saved.runs;
@@ -506,7 +494,7 @@
             if (presetRanking === null) {
               showRankingModal();
             } else {
-              setTimeout(nextComparison, 10);
+              nextComparison();
             }
           }
         } else {
