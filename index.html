@@ -15,7 +15,7 @@
   </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.96</div>
+  <div class="absolute top-4 right-4 text-gray-600 text-sm">Version 1.92</div>
   <div class="container mx-auto p-4 text-center">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -131,9 +131,14 @@
         card2Img.src = rightItem.img;
         card2Name.textContent = rightItem.name;
         
-        // Update separate description windows
-        desc1.innerHTML = leftItem.desc;
-        desc2.innerHTML = rightItem.desc;
+        // Update separate description windows with title info.
+        // If a "title" property exists, it is used; otherwise, fallback is name + " - Profile"
+        desc1.innerHTML =
+          `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
+          leftItem.desc;
+        desc2.innerHTML =
+          `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
+          rightItem.desc;
   
         card1.onclick = () => {
           undoStack.push(cloneState());
