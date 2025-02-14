@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.3<br>
+    Version 0.05.4<br>
     Progress: ~0%
   </div>
   
@@ -97,7 +97,7 @@
     let runs = [];               // array of runs (each run is an array of items)
     let mergeIndex = 0;          // pointer to current pair of runs being merged
     let currentMergeState = null; // { left: [...], right: [...], merged: [...] }
-    let undoStack = [];          // for undo functionality
+    let undoStack = [];          // for undo functionality (only in memory, not saved)
     let progress = 0;
     let progressIncrement = 0;   // computed after items load
     let totalComparisons = 0;    // estimated total decisions (for progress)
@@ -108,39 +108,29 @@
     let availableRanking = [];   // characters available for selection (full objects)
     let favoriteRanking = [];    // characters selected as favorites
 
-    // UI Elements
-    const card1 = document.getElementById('card1');
-    const card2 = document.getElementById('card2');
-    const card1Img = document.getElementById('card1-img');
-    const card2Img = document.getElementById('card2-img');
-    const card1Name = document.getElementById('card1-name');
-    const card2Name = document.getElementById('card2-name');
-    const desc1 = document.getElementById('desc1');
-    const desc2 = document.getElementById('desc2');
-    const status = document.getElementById('status');
-    const undoButton = document.getElementById('undoButton');
-    const restartButton = document.getElementById('restartButton');
-    const versionProgress = document.getElementById("versionProgress");
-
-    // Ranking Modal Elements
-    const rankingModal = document.getElementById('rankingModal');
-    const availableListEl = document.getElementById('availableList');
-    const favoriteListEl = document.getElementById('favoriteList');
-    const confirmRanking = document.getElementById('confirmRanking');
-    const skipRanking = document.getElementById('skipRanking');
-
-    /* ========= State Saving/Restoring ========= */
-    function saveState() {
+    // Debounce helper for saving state.
+    let saveTimeout = null;
+    function debounceSave() {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        _saveState();
+      }, 50);
+    }
+    // Save state excluding the undoStack.
+    function _saveState() {
       const state = {
         runs,
         mergeIndex,
         currentMergeState,
         progress,
-        undoStack,
         presetRanking
       };
       localStorage.setItem("sortingState", JSON.stringify(state));
       updateProgressDisplay();
+    }
+    function saveState() {
+      // Call debounceSave so that we don't save state on every single click.
+      debounceSave();
     }
 
     function loadState() {
@@ -161,12 +151,12 @@
     }
 
     function cloneState() {
-      // Deep clone our state (using JSON since our state is simple data)
+      // Clone state without the undoStack.
       return JSON.parse(JSON.stringify({ runs, mergeIndex, currentMergeState, progress, presetRanking }));
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.3<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.4<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -200,12 +190,12 @@
       if (currentMergeState && currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
-        // Update card images and names
+        // Update card images and names.
         card1Img.src = leftItem.img;
         card1Name.textContent = leftItem.name;
         card2Img.src = rightItem.img;
         card2Name.textContent = rightItem.name;
-        // Update description boxes
+        // Update description boxes.
         desc1.innerHTML =
           `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
           `<h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4>` +
@@ -228,15 +218,15 @@
     /* ========= Iterative Merge Sort (Yielding Control) ========= */
     function startMerge() {
       currentMergeState = {
-        left: runs[mergeIndex].slice(),   // copy of left run
-        right: runs[mergeIndex + 1].slice(), // copy of right run
+        left: runs[mergeIndex].slice(),   // copy of left run.
+        right: runs[mergeIndex + 1].slice(), // copy of right run.
         merged: []
       };
       saveState();
       updateUI();
     }
 
-    // Instead of a tight while(true) loop, we process one iteration and then schedule the next.
+    // Instead of a tight loop, process one iteration and yield control via setTimeout.
     function nextComparison() {
       function processIteration() {
         // If no current merge, try starting one.
@@ -269,12 +259,11 @@
               progress = Math.min(100, progress + progressIncrement);
               updateProgressDisplay();
               saveState();
-              // Process next iteration.
               setTimeout(processIteration, 0);
               return;
             }
           }
-          // If not auto-resolved, break to allow manual input.
+          // Otherwise, update UI to wait for manual input.
           updateUI();
           return;
         } else {
@@ -287,7 +276,6 @@
             currentMergeState.merged.push(...currentMergeState.left);
             currentMergeState.left = [];
           }
-          // Replace the two runs with the merged result.
           runs[mergeIndex] = currentMergeState.merged;
           runs.splice(mergeIndex + 1, 1);
           currentMergeState = null;
@@ -301,7 +289,6 @@
             renderSortedList(runs[0]);
             return;
           }
-          // Continue processing.
           setTimeout(processIteration, 0);
           return;
         }
@@ -449,6 +436,7 @@
         }
         items = await response.json();
         console.log('Fetched items:', items);
+        // Shuffle items (Fisher-Yates)
         for (let i = items.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [items[i], items[j]] = [items[j], items[i]];
@@ -470,7 +458,6 @@
           mergeIndex = saved.mergeIndex;
           currentMergeState = saved.currentMergeState;
           progress = saved.progress;
-          undoStack = saved.undoStack || [];
           presetRanking = saved.presetRanking || null;
           updateProgressDisplay();
           updateUI();
