@@ -15,7 +15,12 @@
   </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
-  <div class="absolute top-4 right-4 text-gray-300 text-sm">Version 0.01</div>
+  <!-- Version and Progress Tracker -->
+  <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
+    Version 0.02<br>
+    Progress: ~0%
+  </div>
+  
   <div class="container mx-auto p-4 text-center text-white">
     <h1 class="text-3xl font-bold mb-6">Character Sorting Tool</h1>
     
@@ -58,6 +63,10 @@
     let sortingComplete = false;
     let currentIsTopLevel = false; // true if the current merge is top-level
 
+    // Progress tracker variables
+    let progress = 0;
+    let progressIncrement = 0; // Will be computed once items are loaded
+
     // UI Elements
     const card1 = document.getElementById('card1');
     const card2 = document.getElementById('card2');
@@ -70,6 +79,12 @@
     const status = document.getElementById('status');
     const undoButton = document.getElementById('undoButton');
     const restartButton = document.getElementById('restartButton');
+    const versionProgress = document.getElementById("versionProgress");
+
+    // Update the progress tracker display.
+    function updateProgressDisplay() {
+      versionProgress.innerHTML = "Version 0.02<br>Progress: " + progress.toFixed(1) + "%";
+    }
 
     // Save state to localStorage
     function saveState() {
@@ -79,7 +94,8 @@
         currentRight: currentRight,
         currentMerge: currentMerge,
         undoStack: undoStack,
-        currentIsTopLevel: currentIsTopLevel
+        currentIsTopLevel: currentIsTopLevel,
+        progress: progress
       };
       localStorage.setItem("sortingState", JSON.stringify(state));
     }
@@ -117,7 +133,8 @@
         left: currentLeft.slice(),
         right: currentRight.slice(),
         merge: currentMerge.slice(),
-        currentIsTopLevel: currentIsTopLevel
+        currentIsTopLevel: currentIsTopLevel,
+        progress: progress
       };
     }
 
@@ -157,7 +174,7 @@
     // Display the next comparison.
     function displayNextComparison() {
       updateUndoButton();
-      // When both arrays are empty, use mergeCallback if defined; otherwise assume top-level.
+      // If both arrays are empty...
       if (currentLeft.length === 0 && currentRight.length === 0) {
         if (!mergeCallback || currentIsTopLevel) {
           sortingComplete = true;
@@ -180,24 +197,29 @@
         card2Name.textContent = rightItem.name;
         // Update description boxes with title and power info.
         desc1.innerHTML =
-          <h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3> +
-          <h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4> +
+          `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
+          `<h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4>` +
           leftItem.desc;
         desc2.innerHTML =
-          <h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3> +
-          <h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4> +
+          `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
+          `<h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4>` +
           rightItem.desc;
-  
+
         card1.onclick = () => {
           undoStack.push(cloneState());
           updateUndoButton();
           currentMerge.push(currentLeft.shift());
+          // Increment progress and update display.
+          progress = Math.min(100, progress + progressIncrement);
+          updateProgressDisplay();
           displayNextComparison();
         };
         card2.onclick = () => {
           undoStack.push(cloneState());
           updateUndoButton();
           currentMerge.push(currentRight.shift());
+          progress = Math.min(100, progress + progressIncrement);
+          updateProgressDisplay();
           displayNextComparison();
         };
       } else if (currentLeft.length > 0) {
@@ -224,6 +246,8 @@
         currentRight = prevState.right;
         currentMerge = prevState.merge;
         currentIsTopLevel = prevState.currentIsTopLevel;
+        progress = prevState.progress; // Roll back progress accordingly.
+        updateProgressDisplay();
         displayNextComparison();
       }
     };
@@ -270,14 +294,27 @@
         items = await response.json();
         console.log('Fetched items:', items);
         shuffle(items);
+        // Compute progress increment using total number of items (n) and log10(n)
+        progressIncrement = 100 / (items.length * Math.log10(items.length));
+        // Update initial progress display.
+        updateProgressDisplay();
         const saved = loadState();
         if (saved) {
+          // If the saved state is not at the top level, force a restart.
+          if (!saved.currentIsTopLevel) {
+            alert("Resuming mid-merge is not supported. Restarting sort.");
+            clearState();
+            window.location.reload();
+            return;
+          }
           sortingComplete = saved.complete;
           currentLeft = saved.currentLeft;
           currentRight = saved.currentRight;
           currentMerge = saved.currentMerge;
           undoStack = saved.undoStack;
           currentIsTopLevel = saved.currentIsTopLevel;
+          progress = saved.progress || 0;
+          updateProgressDisplay();
           if (sortingComplete) {
             renderSortedList(currentMerge);
           } else {
@@ -291,7 +328,7 @@
       }
     }
 
-    // Restart button clears state and reloads page.
+    // Restart button: clear state and reload page.
     restartButton.onclick = () => {
       clearState();
       window.location.reload();
