@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.3<br>
+    Version 0.05.4<br>
     Progress: ~0%
   </div>
   
@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.3<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.4<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -254,8 +254,8 @@
       mergeIndex++;
       if (mergeIndex >= runs.length - 1) mergeIndex = 0;
       saveState();
-      // Process the next merge round.
-      nextComparison();
+      // Yield to the event loop so the UI can update.
+      setTimeout(nextComparison, 0);
     }
 
     function nextComparison() {
@@ -270,7 +270,7 @@
         startMerge();
       }
       
-      // First, process any auto-resolvable comparisons.
+      // Process any auto-resolvable comparisons.
       if (presetRanking && presetRanking.length > 0) {
         while (
           currentMergeState.left.length > 0 &&
@@ -282,7 +282,7 @@
         ) {
           const leftRank = getRank(currentMergeState.left[0]);
           const rightRank = getRank(currentMergeState.right[0]);
-          // If one item is clearly preferred, auto-resolve.
+          // Auto-resolve if one is clearly ranked higher.
           if (leftRank < rightRank) {
             undoStack.push(cloneState());
             updateUndoButton();
@@ -292,7 +292,6 @@
             updateUndoButton();
             currentMergeState.merged.push(currentMergeState.right.shift());
           } else {
-            // If equal, break out for manual decision.
             break;
           }
           progress = Math.min(100, progress + progressIncrement);
@@ -301,7 +300,7 @@
         }
       }
       
-      // If both sides still have items, wait for a manual decision.
+      // If both sides still have items, update the UI and wait for manual input.
       if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         updateUI();
         return;
@@ -313,4 +312,193 @@
 
     // Manual left card click
     card1.onclick = () => {
-      if (!currentMergeState || currentMergeS
+      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      undoStack.push(cloneState());
+      updateUndoButton();
+      currentMergeState.merged.push(currentMergeState.left.shift());
+      progress = Math.min(100, progress + progressIncrement);
+      updateProgressDisplay();
+      saveState();
+      // Yield before processing the next comparison.
+      setTimeout(nextComparison, 0);
+    };
+
+    // Manual right card click
+    card2.onclick = () => {
+      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      undoStack.push(cloneState());
+      updateUndoButton();
+      currentMergeState.merged.push(currentMergeState.right.shift());
+      progress = Math.min(100, progress + progressIncrement);
+      updateProgressDisplay();
+      saveState();
+      setTimeout(nextComparison, 0);
+    };
+
+    /* ========= Final Render ========= */
+    function renderSortedList(sorted) {
+      // Hide interactive elements.
+      document.getElementById('card-container').style.display = 'none';
+      document.getElementById('description-container').style.display = 'none';
+      undoButton.style.display = 'none';
+      status.style.display = 'none';
+      // Create a container for the sorted list.
+      const sortedList = document.createElement('div');
+      sortedList.classList.add('mt-6', 'text-center');
+      const header = document.createElement('h2');
+      header.className = "text-xl font-bold mb-4 text-gray-100";
+      header.textContent = "Sorted List:";
+      sortedList.appendChild(header);
+      const list = document.createElement('ul');
+      sorted.forEach((item) => {
+        const li = document.createElement('li');
+        li.className = "text-lg text-gray-200";
+        li.textContent = item.name;
+        list.appendChild(li);
+      });
+      sortedList.appendChild(list);
+      document.body.appendChild(sortedList);
+      clearState();
+    }
+
+    /* ========= Ranking Modal Functions ========= */
+    function populateRankingModal() {
+      // Initialize available and favorite arrays.
+      availableRanking = items.slice();
+      favoriteRanking = [];
+      renderAvailableList();
+      renderFavoriteList();
+    }
+
+    function renderAvailableList() {
+      availableListEl.innerHTML = "";
+      availableRanking.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = "flex items-center justify-between border-b py-1 px-2";
+        li.innerHTML = `<span>${item.name}</span>
+          <button class="add bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">Add</button>`;
+        li.querySelector('.add').addEventListener('click', () => {
+          favoriteRanking.push(item);
+          availableRanking.splice(index, 1);
+          renderAvailableList();
+          renderFavoriteList();
+        });
+        availableListEl.appendChild(li);
+      });
+    }
+
+    function renderFavoriteList() {
+      favoriteListEl.innerHTML = "";
+      favoriteRanking.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = "flex items-center justify-between border-b py-1 px-2";
+        li.innerHTML = `<span>${item.name}</span>
+          <div>
+            <button class="up bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-1">Up</button>
+            <button class="down bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-1">Down</button>
+            <button class="remove bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">Remove</button>
+          </div>`;
+        li.querySelector('.up').addEventListener('click', () => {
+          if (index > 0) {
+            [favoriteRanking[index - 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index - 1]];
+            renderFavoriteList();
+          }
+        });
+        li.querySelector('.down').addEventListener('click', () => {
+          if (index < favoriteRanking.length - 1) {
+            [favoriteRanking[index + 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index + 1]];
+            renderFavoriteList();
+          }
+        });
+        li.querySelector('.remove').addEventListener('click', () => {
+          availableRanking.push(item);
+          favoriteRanking.splice(index, 1);
+          renderAvailableList();
+          renderFavoriteList();
+        });
+        favoriteListEl.appendChild(li);
+      });
+    }
+
+    function showRankingModal() {
+      populateRankingModal();
+      rankingModal.style.display = "flex";
+    }
+
+    confirmRanking.addEventListener('click', () => {
+      presetRanking = favoriteRanking.map(item => item.name);
+      rankingModal.style.display = "none";
+      saveState();
+      if (runs.length > 1) {
+        nextComparison();
+      }
+    });
+
+    skipRanking.addEventListener('click', () => {
+      presetRanking = null;
+      rankingModal.style.display = "none";
+      saveState();
+      if (runs.length > 1) {
+        nextComparison();
+      }
+    });
+
+    /* ========= Initialization ========= */
+    async function init() {
+      try {
+        const response = await fetch('items.json');
+        if (!response.ok) throw new Error('Network response was not ok');
+        items = await response.json();
+        console.log('Fetched items:', items);
+        // Shuffle items (Fisher-Yates)
+        for (let i = items.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [items[i], items[j]] = [items[j], items[i]];
+        }
+        totalComparisons = items.length * Math.log2(items.length);
+        progressIncrement = totalComparisons ? (100 / totalComparisons) : 100;
+        updateProgressDisplay();
+        // Initialize runs as individual items.
+        runs = items.map(item => [item]);
+        mergeIndex = 0;
+        currentMergeState = null;
+        progress = 0;
+        undoStack = [];
+        saveState();
+        const saved = loadState();
+        if (saved) {
+          runs = saved.runs;
+          mergeIndex = saved.mergeIndex;
+          currentMergeState = saved.currentMergeState;
+          progress = saved.progress;
+          undoStack = saved.undoStack || [];
+          presetRanking = saved.presetRanking || null;
+          updateProgressDisplay();
+          updateUI();
+          if (runs.length === 1) {
+            sortingComplete = true;
+            renderSortedList(runs[0]);
+          } else {
+            if (presetRanking === null) {
+              showRankingModal();
+            } else {
+              nextComparison();
+            }
+          }
+        } else {
+          showRankingModal();
+        }
+      } catch (error) {
+        console.error('Error fetching items:', error);
+      }
+    }
+
+    restartButton.onclick = () => {
+      clearState();
+      window.location.reload();
+    };
+
+    init();
+  </script>
+</body>
+</html>
