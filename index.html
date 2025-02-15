@@ -165,10 +165,6 @@
       return JSON.parse(JSON.stringify({ runs, mergeIndex, currentMergeState, progress, presetRanking }));
     }
 
-    function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version "Presort"<br>Progress: " + progress.toFixed(1) + "%";
-    }
-
     /* ========= Undo Button ========= */
     function updateUndoButton() {
       if (undoStack.length > 0) {
