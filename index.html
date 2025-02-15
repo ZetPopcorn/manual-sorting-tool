@@ -302,74 +302,91 @@
     }
 
     function nextComparison() {
-      log("nextComparison called. Current merge state: " + JSON.stringify(currentMergeState));
-      // If not already in a merge, start one if possible
-      if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          log("No active merge. Starting a new merge.");
-          startMerge();
+  log(
+    "nextComparison called. Current merge state: " +
+      JSON.stringify(currentMergeState) +
+      ", mergeIndex: " +
+      mergeIndex +
+      ", runs.length: " +
+      runs.length
+  );
+  
+  // If no merge is active, then either start a new merge or reset mergeIndex if needed.
+  if (!currentMergeState) {
+    if (mergeIndex >= runs.length - 1) {
+      log("Merge index at end. Resetting mergeIndex to 0.");
+      mergeIndex = 0;
+    }
+    if (runs.length > 1 && mergeIndex < runs.length - 1) {
+      log("No active merge. Starting a new merge.");
+      startMerge();
+      return;
+    }
+  }
+  
+  // If both arrays have items, check for auto-resolve based on preset ranking
+  if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
+    const leftItem = currentMergeState.left[0];
+    const rightItem = currentMergeState.right[0];
+
+    if (presetRanking && presetRanking.length > 0) {
+      const leftRank = getRank(leftItem);
+      const rightRank = getRank(rightItem);
+      // Only auto-resolve if both items are ranked.
+      if (leftRank !== Infinity && rightRank !== Infinity) {
+        if (leftRank < rightRank) {
+          autoResolveComparison('left');
+          return;
+        } else if (rightRank < leftRank) {
+          autoResolveComparison('right');
           return;
         }
-      }
-      // If both arrays have items, check for auto-resolve based on preset ranking
-      if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
-        const leftItem = currentMergeState.left[0];
-        const rightItem = currentMergeState.right[0];
-
-        if (presetRanking && presetRanking.length > 0) {
-          const leftRank = getRank(leftItem);
-          const rightRank = getRank(rightItem);
-          // Only auto-resolve if both items are ranked.
-          if (leftRank !== Infinity && rightRank !== Infinity) {
-            if (leftRank < rightRank) {
-              autoResolveComparison('left');
-              return;
-            } else if (rightRank < leftRank) {
-              autoResolveComparison('right');
-              return;
-            }
-            // If equal, fall through to manual choice.
-            log("Both items have equal ranking; awaiting manual selection.");
-          }
-        }
-        updateUI();
-      } else {
-        // One side is empty; finish this merge.
-        log("One side empty. Finishing merge. Left length: " + currentMergeState.left.length +
-            ", Right length: " + currentMergeState.right.length);
-        if (currentMergeState.left.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.right);
-          currentMergeState.right = [];
-        }
-        if (currentMergeState.right.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.left);
-          currentMergeState.left = [];
-        }
-        // Replace the two runs with the merged result
-        runs[mergeIndex] = currentMergeState.merged;
-        runs.splice(mergeIndex + 1, 1);
-        log("Merged run complete. New run length: " + currentMergeState.merged.length);
-        currentMergeState = null;
-        mergeIndex++;
-
-        // If we've merged all adjacent pairs in this round, start over.
-        if (mergeIndex >= runs.length - 1) {
-          log("Completed round of merges. Resetting mergeIndex.");
-          mergeIndex = 0;
-        }
-
-        saveState();
-
-        // If only one run remains, we're done.
-        if (runs.length === 1) {
-          sortingComplete = true;
-          log("Sorting complete.");
-          renderSortedList(runs[0]);
-          return;
-        }
-        nextComparison();
+        log("Both items have equal ranking; awaiting manual selection.");
       }
     }
+    updateUI();
+  } else {
+    // One side is empty; finish this merge.
+    log(
+      "One side empty. Finishing merge. Left length: " +
+        currentMergeState.left.length +
+        ", Right length: " +
+        currentMergeState.right.length
+    );
+    if (currentMergeState.left.length === 0) {
+      currentMergeState.merged.push(...currentMergeState.right);
+      currentMergeState.right = [];
+    }
+    if (currentMergeState.right.length === 0) {
+      currentMergeState.merged.push(...currentMergeState.left);
+      currentMergeState.left = [];
+    }
+    // Replace the two runs with the merged result
+    runs[mergeIndex] = currentMergeState.merged;
+    runs.splice(mergeIndex + 1, 1);
+    log("Merged run complete. New run length: " + currentMergeState.merged.length);
+    currentMergeState = null;
+    mergeIndex++;
+
+    // If we've merged all adjacent pairs in this round, reset mergeIndex.
+    if (mergeIndex >= runs.length - 1) {
+      log("Completed round of merges. Resetting mergeIndex.");
+      mergeIndex = 0;
+    }
+
+    saveState();
+
+    // If only one run remains, we're done.
+    if (runs.length === 1) {
+      sortingComplete = true;
+      log("Sorting complete.");
+      renderSortedList(runs[0]);
+      return;
+    }
+    nextComparison();
+  }
+}
+
 
     // Manual left card click
     card1.onclick = () => {
