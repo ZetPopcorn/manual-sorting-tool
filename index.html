@@ -209,12 +209,12 @@
 
         // Update description boxes
         desc1.innerHTML =
-          <h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3> +
-          <h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4> +
+          `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
+          `<h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4>` +
           leftItem.desc;
         desc2.innerHTML =
-          <h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3> +
-          <h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4> +
+          `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
+          `<h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4>` +
           rightItem.desc;
 
         status.textContent = "Choose your favorite character!";
@@ -258,14 +258,17 @@
     }
 
     function nextComparison() {
-      // If not already in a merge, start one if possible
+      // If no active merge, ensure mergeIndex is valid (reset if needed) and start one.
       if (!currentMergeState) {
+        if (mergeIndex >= runs.length - 1 && runs.length > 1) {
+          mergeIndex = 0;
+        }
         if (mergeIndex < runs.length - 1) {
           startMerge();
           return;
         }
       }
-      // If both arrays have items, check for auto-resolve based on preset ranking
+      // If both arrays have items, check for auto-resolve based on preset ranking.
       if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
@@ -296,13 +299,13 @@
           currentMergeState.merged.push(...currentMergeState.left);
           currentMergeState.left = [];
         }
-        // Replace the two runs with the merged result
+        // Replace the two runs with the merged result.
         runs[mergeIndex] = currentMergeState.merged;
         runs.splice(mergeIndex + 1, 1);
         currentMergeState = null;
         mergeIndex++;
 
-        // If we've merged all adjacent pairs in this round, start over.
+        // If we've merged all adjacent pairs in this round, reset mergeIndex.
         if (mergeIndex >= runs.length - 1) {
           mergeIndex = 0;
         }
@@ -385,8 +388,8 @@
       availableRanking.forEach((item, index) => {
         const li = document.createElement('li');
         li.className = "flex items-center justify-between border-b py-1 px-2";
-        li.innerHTML = <span>${item.name}</span>
-          <button class="add bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">Add</button>;
+        li.innerHTML = `<span>${item.name}</span>
+          <button class="add bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">Add</button>`;
         // When the add button is clicked, move the item to favorites.
         li.querySelector('.add').addEventListener('click', () => {
           favoriteRanking.push(item);
@@ -403,12 +406,12 @@
       favoriteRanking.forEach((item, index) => {
         const li = document.createElement('li');
         li.className = "flex items-center justify-between border-b py-1 px-2";
-        li.innerHTML = <span>${item.name}</span>
+        li.innerHTML = `<span>${item.name}</span>
           <div>
             <button class="up bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-1">Up</button>
             <button class="down bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-1">Down</button>
             <button class="remove bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">Remove</button>
-          </div>;
+          </div>`;
         // Up button
         li.querySelector('.up').addEventListener('click', () => {
           if (index > 0) {
