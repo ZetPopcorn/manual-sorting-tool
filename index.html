@@ -30,12 +30,26 @@
       justify-content: center;
       z-index: 50;
     }
+    /* Debug log styling */
+    #debugLog {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      background: rgba(0,0,0,0.8);
+      color: #d1d5db;
+      font-size: 0.8em;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 100%;
+      padding: 0.5em;
+      z-index: 100;
+    }
   </style>
 </head>
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.2<br>
+    Version 0.05.1<br>
     Progress: ~0%
   </div>
   
@@ -91,7 +105,25 @@
     </div>
   </div>
 
+  <!-- Debug Log Container -->
+  <div id="debugLog"></div>
+
   <script>
+    /* ========= Debug Logging Function ========= */
+    function log(message) {
+      console.log(message);
+      const debugLog = document.getElementById('debugLog');
+      if (debugLog) {
+        const p = document.createElement('p');
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        debugLog.appendChild(p);
+        // Limit log entries to last 100 messages
+        if (debugLog.childNodes.length > 100) {
+          debugLog.removeChild(debugLog.firstChild);
+        }
+      }
+    }
+
     /* ========= Global Variables ========= */
     let items = [];              // loaded items from items.json
     let runs = [];               // array of runs (each run is an array of items)
@@ -141,15 +173,18 @@
       };
       localStorage.setItem("sortingState", JSON.stringify(state));
       updateProgressDisplay();
+      log("State saved.");
     }
 
     function loadState() {
       const stateStr = localStorage.getItem("sortingState");
       if (stateStr) {
         try {
+          log("Loaded state from storage.");
           return JSON.parse(stateStr);
         } catch (e) {
           console.error("Error parsing saved state:", e);
+          log("Error parsing saved state.");
           return null;
         }
       }
@@ -158,6 +193,7 @@
 
     function clearState() {
       localStorage.removeItem("sortingState");
+      log("State cleared.");
     }
 
     function cloneState() {
@@ -166,7 +202,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.2<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.1<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -192,6 +228,7 @@
         updateUI();
         saveState();
         updateUndoButton();
+        log("Undo performed. Current mergeIndex: " + mergeIndex);
       }
     };
 
@@ -218,6 +255,7 @@
           rightItem.desc;
 
         status.textContent = "Choose your favorite character!";
+        log("UI updated. Comparing: " + leftItem.name + " vs. " + rightItem.name);
       }
     }
 
@@ -229,14 +267,17 @@
     }
 
     function autoResolveComparison(side) {
+      log("Auto-resolving comparison, choosing " + side + ".");
       undoStack.push(cloneState());
       updateUndoButton();
       if (side === 'left') {
         const chosen = currentMergeState.left.shift();
         currentMergeState.merged.push(chosen);
+        log("Chose left: " + chosen.name);
       } else {
         const chosen = currentMergeState.right.shift();
         currentMergeState.merged.push(chosen);
+        log("Chose right: " + chosen.name);
       }
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
@@ -251,6 +292,9 @@
         right: runs[mergeIndex + 1].slice(), // copy of right run
         merged: []
       };
+      log("Starting merge at mergeIndex " + mergeIndex +
+          " with left length " + currentMergeState.left.length +
+          " and right length " + currentMergeState.right.length);
       saveState();
       updateUI();
       // Immediately check for auto-resolve if a preset ranking exists:
@@ -258,20 +302,11 @@
     }
 
     function nextComparison() {
-      // If not already in a merge, start one if possible.
-      // The bug fix is here: if mergeIndex is not less than runs.length - 1,
-      // we reset mergeIndex to 0 so that a new merge can begin.
+      log("nextComparison called. Current merge state: " + JSON.stringify(currentMergeState));
+      // If not already in a merge, start one if possible
       if (!currentMergeState) {
         if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        } else {
-          mergeIndex = 0;
-          if (runs.length < 2) {
-            sortingComplete = true;
-            renderSortedList(runs[0]);
-            return;
-          }
+          log("No active merge. Starting a new merge.");
           startMerge();
           return;
         }
@@ -294,11 +329,14 @@
               return;
             }
             // If equal, fall through to manual choice.
+            log("Both items have equal ranking; awaiting manual selection.");
           }
         }
         updateUI();
       } else {
         // One side is empty; finish this merge.
+        log("One side empty. Finishing merge. Left length: " + currentMergeState.left.length +
+            ", Right length: " + currentMergeState.right.length);
         if (currentMergeState.left.length === 0) {
           currentMergeState.merged.push(...currentMergeState.right);
           currentMergeState.right = [];
@@ -310,11 +348,13 @@
         // Replace the two runs with the merged result
         runs[mergeIndex] = currentMergeState.merged;
         runs.splice(mergeIndex + 1, 1);
+        log("Merged run complete. New run length: " + currentMergeState.merged.length);
         currentMergeState = null;
         mergeIndex++;
 
         // If we've merged all adjacent pairs in this round, start over.
         if (mergeIndex >= runs.length - 1) {
+          log("Completed round of merges. Resetting mergeIndex.");
           mergeIndex = 0;
         }
 
@@ -323,6 +363,7 @@
         // If only one run remains, we're done.
         if (runs.length === 1) {
           sortingComplete = true;
+          log("Sorting complete.");
           renderSortedList(runs[0]);
           return;
         }
@@ -333,10 +374,12 @@
     // Manual left card click
     card1.onclick = () => {
       if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      log("Left card clicked.");
       undoStack.push(cloneState());
       updateUndoButton();
       const chosen = currentMergeState.left.shift();
       currentMergeState.merged.push(chosen);
+      log("Manually chose left: " + chosen.name);
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
@@ -346,10 +389,12 @@
     // Manual right card click
     card2.onclick = () => {
       if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
+      log("Right card clicked.");
       undoStack.push(cloneState());
       updateUndoButton();
       const chosen = currentMergeState.right.shift();
       currentMergeState.merged.push(chosen);
+      log("Manually chose right: " + chosen.name);
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
@@ -380,6 +425,7 @@
       sortedList.appendChild(list);
       document.body.appendChild(sortedList);
       clearState();
+      log("Final sorted list rendered.");
     }
 
     /* ========= Ranking Modal Functions ========= */
@@ -404,6 +450,7 @@
           availableRanking.splice(index, 1);
           renderAvailableList();
           renderFavoriteList();
+          log("Added " + item.name + " to favorites.");
         });
         availableListEl.appendChild(li);
       });
@@ -425,6 +472,7 @@
           if (index > 0) {
             [favoriteRanking[index - 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index - 1]];
             renderFavoriteList();
+            log("Moved " + item.name + " up in favorites.");
           }
         });
         // Down button
@@ -432,6 +480,7 @@
           if (index < favoriteRanking.length - 1) {
             [favoriteRanking[index + 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index + 1]];
             renderFavoriteList();
+            log("Moved " + item.name + " down in favorites.");
           }
         });
         // Remove button
@@ -440,6 +489,7 @@
           favoriteRanking.splice(index, 1);
           renderAvailableList();
           renderFavoriteList();
+          log("Removed " + item.name + " from favorites.");
         });
         favoriteListEl.appendChild(li);
       });
@@ -448,12 +498,14 @@
     function showRankingModal() {
       populateRankingModal();
       rankingModal.style.display = "flex";
+      log("Ranking modal shown.");
     }
 
     // When the user confirms their presorted favorites
     confirmRanking.addEventListener('click', () => {
       presetRanking = favoriteRanking.map(item => item.name);
       rankingModal.style.display = "none";
+      log("Preset ranking confirmed: " + presetRanking.join(", "));
       saveState();
       // Begin merge sort comparisons.
       if (runs.length > 1) {
@@ -465,6 +517,7 @@
     skipRanking.addEventListener('click', () => {
       presetRanking = null;
       rankingModal.style.display = "none";
+      log("Preset ranking skipped.");
       saveState();
       if (runs.length > 1) {
         nextComparison();
@@ -479,7 +532,7 @@
           throw new Error('Network response was not ok');
         }
         items = await response.json();
-        console.log('Fetched items:', items);
+        log("Fetched items: " + items.length);
         // Shuffle items (Fisher-Yates)
         for (let i = items.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -510,6 +563,7 @@
           presetRanking = saved.presetRanking || null;
           updateProgressDisplay();
           updateUI();
+          log("Resumed from saved state. Runs count: " + runs.length);
           // If sorting is already complete, render the sorted list.
           if (runs.length === 1) {
             sortingComplete = true;
@@ -527,11 +581,13 @@
         }
       } catch (error) {
         console.error('Error fetching items:', error);
+        log("Error fetching items: " + error.message);
       }
     }
 
     restartButton.onclick = () => {
       clearState();
+      log("Restart button clicked. Reloading page.");
       window.location.reload();
     };
 
