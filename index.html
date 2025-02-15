@@ -35,7 +35,7 @@
 <body class="bg-gray-800 flex flex-col items-center justify-center min-h-screen relative">
   <!-- Version and Progress Tracker -->
   <div id="versionProgress" class="absolute top-4 right-4 text-gray-300 text-sm">
-    Version 0.05.1<br>
+    Version NewMerge<br>
     Progress: ~0%
   </div>
   
@@ -94,19 +94,15 @@
   <script>
     /* ========= Global Variables ========= */
     let items = [];              // loaded items from items.json
-    let runs = [];               // array of runs (each run is an array of items)
-    let mergeIndex = 0;          // pointer to current pair of runs being merged
-    let currentMergeState = null; // { left: [...], right: [...], merged: [...] }
-    let undoStack = [];          // for undo functionality
-    let progress = 0;
-    let progressIncrement = 0;   // computed after items load
-    let totalComparisons = 0;    // estimated total decisions (for progress)
-    let sortingComplete = false;
+    let runs = [];               // each item becomes a run: [item]
+    let currentMerge = null;     // holds the current merge pair {left, right, merged}
+    let currentMergePairIndex = 0; // index into the runs array for the current merge pair
     let presetRanking = null;    // array of character names in preferred order (partial ranking)
-
-    // Variables for ranking modal lists
-    let availableRanking = [];   // characters available for selection (full objects)
-    let favoriteRanking = [];    // characters selected as favorites
+    let progress = 0;
+    let totalComparisons = 0;
+    let progressIncrement = 0;
+    let undoStack = [];
+    let sortingComplete = false;
 
     // UI Elements
     const card1 = document.getElementById('card1');
@@ -129,47 +125,22 @@
     const confirmRanking = document.getElementById('confirmRanking');
     const skipRanking = document.getElementById('skipRanking');
 
-    /* ========= State Saving/Restoring ========= */
-    function saveState() {
-      const state = {
-        runs,
-        mergeIndex,
-        currentMergeState,
-        progress,
-        undoStack,
-        presetRanking
-      };
-      localStorage.setItem("sortingState", JSON.stringify(state));
-      updateProgressDisplay();
-    }
-
-    function loadState() {
-      const stateStr = localStorage.getItem("sortingState");
-      if (stateStr) {
-        try {
-          return JSON.parse(stateStr);
-        } catch (e) {
-          console.error("Error parsing saved state:", e);
-          return null;
-        }
-      }
-      return null;
-    }
-
-    function clearState() {
-      localStorage.removeItem("sortingState");
-    }
-
-    function cloneState() {
-      // Deep clone our state (using JSON since our state is simple data)
-      return JSON.parse(JSON.stringify({ runs, mergeIndex, currentMergeState, progress, presetRanking }));
-    }
-
+    /* ========= Progress Display ========= */
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.1<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version NewMerge<br>Progress: " + progress.toFixed(1) + "%";
     }
 
-    /* ========= Undo Button ========= */
+    /* ========= Undo Functionality ========= */
+    function cloneState() {
+      return {
+        runs: JSON.parse(JSON.stringify(runs)),
+        currentMerge: currentMerge ? JSON.parse(JSON.stringify(currentMerge)) : null,
+        currentMergePairIndex,
+        progress,
+        presetRanking: presetRanking ? [...presetRanking] : null
+      };
+    }
+
     function updateUndoButton() {
       if (undoStack.length > 0) {
         undoButton.disabled = false;
@@ -184,196 +155,40 @@
       if (undoStack.length > 0) {
         const prevState = undoStack.pop();
         runs = prevState.runs;
-        mergeIndex = prevState.mergeIndex;
-        currentMergeState = prevState.currentMergeState;
+        currentMerge = prevState.currentMerge;
+        currentMergePairIndex = prevState.currentMergePairIndex;
         progress = prevState.progress;
         presetRanking = prevState.presetRanking;
         updateProgressDisplay();
-        updateUI();
-        saveState();
+        if (currentMerge && currentMerge.left.length && currentMerge.right.length) {
+          updateUI(currentMerge.left[0], currentMerge.right[0]);
+        }
         updateUndoButton();
       }
     };
 
     /* ========= UI Updating ========= */
-    function updateUI() {
-      if (currentMergeState && currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
-        const leftItem = currentMergeState.left[0];
-        const rightItem = currentMergeState.right[0];
+    function updateUI(leftItem, rightItem) {
+      card1Img.src = leftItem.img;
+      card1Name.textContent = leftItem.name;
+      card2Img.src = rightItem.img;
+      card2Name.textContent = rightItem.name;
 
-        // Update card images and names
-        card1Img.src = leftItem.img;
-        card1Name.textContent = leftItem.name;
-        card2Img.src = rightItem.img;
-        card2Name.textContent = rightItem.name;
+      desc1.innerHTML =
+        `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
+        `<h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4>` +
+        leftItem.desc;
+      desc2.innerHTML =
+        `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
+        `<h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4>` +
+        rightItem.desc;
 
-        // Update description boxes
-        desc1.innerHTML =
-          `<h3 class="text-center font-bold mb-2">${leftItem.title || (leftItem.name + " - Profile")}</h3>` +
-          `<h4 class="text-center font-bold mb-2">Power: ${leftItem.power || "None"}</h4>` +
-          leftItem.desc;
-        desc2.innerHTML =
-          `<h3 class="text-center font-bold mb-2">${rightItem.title || (rightItem.name + " - Profile")}</h3>` +
-          `<h4 class="text-center font-bold mb-2">Power: ${rightItem.power || "None"}</h4>` +
-          rightItem.desc;
-
-        status.textContent = "Choose your favorite of the two! Or click";
-      }
-    }
-
-    /* ========= Auto-Resolve via Preset Ranking ========= */
-    function getRank(item) {
-      if (!presetRanking) return Infinity;
-      const index = presetRanking.indexOf(item.name);
-      return index === -1 ? Infinity : index;
-    }
-
-    function autoResolveComparison(side) {
-      undoStack.push(cloneState());
-      updateUndoButton();
-      if (side === 'left') {
-        const chosen = currentMergeState.left.shift();
-        currentMergeState.merged.push(chosen);
-      } else {
-        const chosen = currentMergeState.right.shift();
-        currentMergeState.merged.push(chosen);
-      }
-      progress = Math.min(100, progress + progressIncrement);
-      updateProgressDisplay();
-      saveState();
-      nextComparison();
-    }
-
-    /* ========= Iterative Merge Sort Functions ========= */
-    function startMerge() {
-      currentMergeState = {
-        left: runs[mergeIndex].slice(),   // copy of left run
-        right: runs[mergeIndex + 1].slice(), // copy of right run
-        merged: []
-      };
-      saveState();
-      updateUI();
-      // Immediately check for auto-resolve if a preset ranking exists:
-      nextComparison();
-    }
-
-    function nextComparison() {
-      // If not already in a merge, start one if possible
-      if (!currentMergeState) {
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        }
-      }
-      // If both arrays have items, check for auto-resolve based on preset ranking
-      if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
-        const leftItem = currentMergeState.left[0];
-        const rightItem = currentMergeState.right[0];
-
-        if (presetRanking && presetRanking.length > 0) {
-          const leftRank = getRank(leftItem);
-          const rightRank = getRank(rightItem);
-          // Only auto-resolve if both items are ranked.
-          if (leftRank !== Infinity && rightRank !== Infinity) {
-            if (leftRank < rightRank) {
-              autoResolveComparison('left');
-              return;
-            } else if (rightRank < leftRank) {
-              autoResolveComparison('right');
-              return;
-            }
-            // If equal, fall through to manual choice.
-          }
-        }
-        updateUI();
-      } else {
-        // One side is empty; finish this merge.
-        if (currentMergeState.left.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.right);
-          currentMergeState.right = [];
-        }
-        if (currentMergeState.right.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.left);
-          currentMergeState.left = [];
-        }
-        // Replace the two runs with the merged result
-        runs[mergeIndex] = currentMergeState.merged;
-        runs.splice(mergeIndex + 1, 1);
-        currentMergeState = null;
-        mergeIndex++;
-
-        // If we've merged all adjacent pairs in this round, start over.
-        if (mergeIndex >= runs.length - 1) {
-          mergeIndex = 0;
-        }
-
-        saveState();
-
-        // If only one run remains, we're done.
-        if (runs.length === 1) {
-          sortingComplete = true;
-          renderSortedList(runs[0]);
-          return;
-        }
-        nextComparison();
-      }
-    }
-
-    // Manual left card click
-    card1.onclick = () => {
-      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
-      undoStack.push(cloneState());
-      updateUndoButton();
-      const chosen = currentMergeState.left.shift();
-      currentMergeState.merged.push(chosen);
-      progress = Math.min(100, progress + progressIncrement);
-      updateProgressDisplay();
-      saveState();
-      nextComparison();
-    };
-
-    // Manual right card click
-    card2.onclick = () => {
-      if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
-      undoStack.push(cloneState());
-      updateUndoButton();
-      const chosen = currentMergeState.right.shift();
-      currentMergeState.merged.push(chosen);
-      progress = Math.min(100, progress + progressIncrement);
-      updateProgressDisplay();
-      saveState();
-      nextComparison();
-    };
-
-    /* ========= Final Render ========= */
-    function renderSortedList(sorted) {
-      // Hide interactive elements.
-      document.getElementById('card-container').style.display = 'none';
-      document.getElementById('description-container').style.display = 'none';
-      undoButton.style.display = 'none';
-      status.style.display = 'none';
-      // Create a container for the sorted list.
-      const sortedList = document.createElement('div');
-      sortedList.classList.add('mt-6', 'text-center');
-      const header = document.createElement('h2');
-      header.className = "text-xl font-bold mb-4 text-gray-100";
-      header.textContent = "Sorted List:";
-      sortedList.appendChild(header);
-      const list = document.createElement('ul');
-      sorted.forEach((item) => {
-        const li = document.createElement('li');
-        li.className = "text-lg text-gray-200";
-        li.textContent = item.name;
-        list.appendChild(li);
-      });
-      sortedList.appendChild(list);
-      document.body.appendChild(sortedList);
-      clearState();
+      status.textContent = "Choose your favorite of the two!";
     }
 
     /* ========= Ranking Modal Functions ========= */
     function populateRankingModal() {
-      // Initialize available and favorite arrays.
+      // Copy items into available list; favoriteRanking starts empty.
       availableRanking = items.slice();
       favoriteRanking = [];
       renderAvailableList();
@@ -387,7 +202,6 @@
         li.className = "flex items-center justify-between border-b py-1 px-2";
         li.innerHTML = `<span>${item.name}</span>
           <button class="add bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">Add</button>`;
-        // When the add button is clicked, move the item to favorites.
         li.querySelector('.add').addEventListener('click', () => {
           favoriteRanking.push(item);
           availableRanking.splice(index, 1);
@@ -409,21 +223,18 @@
             <button class="down bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-1">Down</button>
             <button class="remove bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">Remove</button>
           </div>`;
-        // Up button
         li.querySelector('.up').addEventListener('click', () => {
           if (index > 0) {
             [favoriteRanking[index - 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index - 1]];
             renderFavoriteList();
           }
         });
-        // Down button
         li.querySelector('.down').addEventListener('click', () => {
           if (index < favoriteRanking.length - 1) {
             [favoriteRanking[index + 1], favoriteRanking[index]] = [favoriteRanking[index], favoriteRanking[index + 1]];
             renderFavoriteList();
           }
         });
-        // Remove button
         li.querySelector('.remove').addEventListener('click', () => {
           availableRanking.push(item);
           favoriteRanking.splice(index, 1);
@@ -439,26 +250,156 @@
       rankingModal.style.display = "flex";
     }
 
-    // When the user confirms their presorted favorites
     confirmRanking.addEventListener('click', () => {
       presetRanking = favoriteRanking.map(item => item.name);
       rankingModal.style.display = "none";
-      saveState();
       // Begin merge sort comparisons.
       if (runs.length > 1) {
-        nextComparison();
+        startNextMergePair();
       }
     });
 
-    // Skip presorting; use no preset ranking.
     skipRanking.addEventListener('click', () => {
       presetRanking = null;
       rankingModal.style.display = "none";
-      saveState();
       if (runs.length > 1) {
-        nextComparison();
+        startNextMergePair();
       }
     });
+
+    /* ========= Merge Sort Logic ========= */
+    // Returns the ranking index from the preset ranking (or Infinity if not ranked)
+    function getRank(item) {
+      if (!presetRanking) return Infinity;
+      const index = presetRanking.indexOf(item.name);
+      return index === -1 ? Infinity : index;
+    }
+
+    // Called after each decision to check the state of the current merge pair.
+    function processMergeStep() {
+      if (!currentMerge) return;
+
+      // If both lists still have items, check for auto-resolve via preset ranking.
+      if (currentMerge.left.length > 0 && currentMerge.right.length > 0) {
+        const leftItem = currentMerge.left[0];
+        const rightItem = currentMerge.right[0];
+
+        if (presetRanking && presetRanking.length > 0) {
+          const leftRank = getRank(leftItem);
+          const rightRank = getRank(rightItem);
+          if (leftRank !== Infinity && rightRank !== Infinity) {
+            if (leftRank < rightRank) {
+              processLeftChoice();
+              return;
+            } else if (rightRank < leftRank) {
+              processRightChoice();
+              return;
+            }
+          }
+        }
+        // Update UI for manual selection.
+        updateUI(leftItem, rightItem);
+      } else {
+        // One side is empty; finish this merge pair.
+        if (currentMerge.left.length === 0) {
+          currentMerge.merged = currentMerge.merged.concat(currentMerge.right);
+        }
+        if (currentMerge.right.length === 0) {
+          currentMerge.merged = currentMerge.merged.concat(currentMerge.left);
+        }
+        // Replace the two runs with the merged result.
+        runs[currentMergePairIndex] = currentMerge.merged;
+        runs.splice(currentMergePairIndex + 1, 1);
+        currentMerge = null;
+        currentMergePairIndex++;
+        if (currentMergePairIndex >= runs.length - 1) {
+          currentMergePairIndex = 0;
+        }
+        if (runs.length > 1) {
+          startNextMergePair();
+        } else {
+          sortingComplete = true;
+          renderSortedList(runs[0]);
+        }
+      }
+    }
+
+    // Called when the left card is chosen.
+    function processLeftChoice() {
+      if (!currentMerge || currentMerge.left.length === 0 || currentMerge.right.length === 0) return;
+      undoStack.push(cloneState());
+      updateUndoButton();
+      const chosen = currentMerge.left.shift();
+      currentMerge.merged.push(chosen);
+      progress = Math.min(100, progress + progressIncrement);
+      updateProgressDisplay();
+      processMergeStep();
+    }
+
+    // Called when the right card is chosen.
+    function processRightChoice() {
+      if (!currentMerge || currentMerge.left.length === 0 || currentMerge.right.length === 0) return;
+      undoStack.push(cloneState());
+      updateUndoButton();
+      const chosen = currentMerge.right.shift();
+      currentMerge.merged.push(chosen);
+      progress = Math.min(100, progress + progressIncrement);
+      updateProgressDisplay();
+      processMergeStep();
+    }
+
+    // Initialize the next merge pair from the runs.
+    function startNextMergePair() {
+      if (runs.length === 1) {
+        sortingComplete = true;
+        renderSortedList(runs[0]);
+        return;
+      }
+      currentMerge = {
+        left: runs[currentMergePairIndex].slice(),
+        right: runs[currentMergePairIndex + 1].slice(),
+        merged: []
+      };
+      processMergeStep();
+    }
+
+    // Event listeners for manual selection.
+    card1.onclick = () => {
+      if (currentMerge && currentMerge.left.length && currentMerge.right.length) {
+        processLeftChoice();
+      }
+    };
+
+    card2.onclick = () => {
+      if (currentMerge && currentMerge.left.length && currentMerge.right.length) {
+        processRightChoice();
+      }
+    };
+
+    /* ========= Final Render ========= */
+    function renderSortedList(sorted) {
+      // Hide interactive elements.
+      document.getElementById('card-container').style.display = 'none';
+      document.getElementById('description-container').style.display = 'none';
+      undoButton.style.display = 'none';
+      status.style.display = 'none';
+      // Create and display the sorted list.
+      const sortedList = document.createElement('div');
+      sortedList.classList.add('mt-6', 'text-center');
+      const header = document.createElement('h2');
+      header.className = "text-xl font-bold mb-4 text-gray-100";
+      header.textContent = "Sorted List:";
+      sortedList.appendChild(header);
+      const list = document.createElement('ul');
+      sorted.forEach((item) => {
+        const li = document.createElement('li');
+        li.className = "text-lg text-gray-200";
+        li.textContent = item.name;
+        list.appendChild(li);
+      });
+      sortedList.appendChild(list);
+      document.body.appendChild(sortedList);
+    }
 
     /* ========= Initialization ========= */
     async function init() {
@@ -469,59 +410,32 @@
         }
         items = await response.json();
         console.log('Fetched items:', items);
-        // Shuffle items (Fisher-Yates)
+        // Shuffle items using Fisher-Yates
         for (let i = items.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [items[i], items[j]] = [items[j], items[i]];
         }
-        // Estimate total comparisons as n * log2(n)
+        // Estimate total comparisons (n * log2(n))
         totalComparisons = items.length * Math.log2(items.length);
         progressIncrement = totalComparisons ? (100 / totalComparisons) : 100;
-        
         updateProgressDisplay();
 
-        // Initialize runs as individual items.
+        // Initialize runs: each item in its own run.
         runs = items.map(item => [item]);
-        mergeIndex = 0;
-        currentMergeState = null;
+        currentMergePairIndex = 0;
+        currentMerge = null;
         progress = 0;
         undoStack = [];
-        saveState();
 
-        // Try loading saved state.
-        const saved = loadState();
-        if (saved) {
-          runs = saved.runs;
-          mergeIndex = saved.mergeIndex;
-          currentMergeState = saved.currentMergeState;
-          progress = saved.progress;
-          undoStack = saved.undoStack || [];
-          presetRanking = saved.presetRanking || null;
-          updateProgressDisplay();
-          updateUI();
-          // If sorting is already complete, render the sorted list.
-          if (runs.length === 1) {
-            sortingComplete = true;
-            renderSortedList(runs[0]);
-          } else {
-            if (presetRanking === null) {
-              showRankingModal();
-            } else {
-              nextComparison();
-            }
-          }
-        } else {
-          // No saved state; show ranking modal first.
-          showRankingModal();
-        }
+        // Show the ranking modal first.
+        showRankingModal();
       } catch (error) {
         console.error('Error fetching items:', error);
       }
     }
 
     restartButton.onclick = () => {
-      clearState();
-      window.location.reload();
+      location.reload();
     };
 
     init();
