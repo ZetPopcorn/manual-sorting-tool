@@ -310,30 +310,29 @@
       ", runs.length: " +
       runs.length
   );
-
-  // If not in a merge, try to start one.
+  
+  // If there's no active merge, see if we can start one.
   if (!currentMergeState) {
-    // If mergeIndex is at or beyond the last pair, reset it.
+    // If we're at the end and there's an unpaired run, simply reset mergeIndex.
     if (mergeIndex >= runs.length - 1) {
-      log("Merge index (" + mergeIndex + ") >= runs.length-1 (" + (runs.length - 1) + "). Resetting mergeIndex to 0.");
+      log("Reached end of runs. Resetting mergeIndex to 0 for a new merge round.");
       mergeIndex = 0;
     }
+    // Check if there's a valid pair to merge.
     if (runs.length > 1 && mergeIndex < runs.length - 1) {
-      log("No active merge. Starting a new merge.");
+      log("No active merge. Starting a new merge at mergeIndex " + mergeIndex);
       startMerge();
       return;
     }
   }
-
-  // If both arrays have items, update the UI (or auto-resolve).
+  
+  // If both arrays have items, display the UI (or auto-resolve).
   if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
     const leftItem = currentMergeState.left[0];
     const rightItem = currentMergeState.right[0];
-
     if (presetRanking && presetRanking.length > 0) {
       const leftRank = getRank(leftItem);
       const rightRank = getRank(rightItem);
-      // Only auto-resolve if both items are ranked.
       if (leftRank !== Infinity && rightRank !== Infinity) {
         if (leftRank < rightRank) {
           autoResolveComparison('left');
@@ -347,11 +346,10 @@
     }
     updateUI();
   } else {
-    // One side is empty; finish this merge.
+    // One side is empty – finish this merge.
     log("One side empty. Finishing merge. Left length: " + currentMergeState.left.length +
         ", Right length: " + currentMergeState.right.length);
-
-    // If one side is empty, push the remaining items from the other side.
+    
     if (currentMergeState.left.length === 0) {
       currentMergeState.merged.push(...currentMergeState.right);
       currentMergeState.right = [];
@@ -360,20 +358,15 @@
       currentMergeState.merged.push(...currentMergeState.left);
       currentMergeState.left = [];
     }
-
     // Replace the two runs with the merged result.
     runs[mergeIndex] = currentMergeState.merged;
     runs.splice(mergeIndex + 1, 1);
     log("Merged run complete. New run (at index " + mergeIndex + ") length: " + currentMergeState.merged.length);
-    
-    // Log the mergeIndex before and after incrementing.
-    log("Before incrementing, mergeIndex: " + mergeIndex);
     mergeIndex++;
     log("After incrementing, mergeIndex: " + mergeIndex);
-    
     currentMergeState = null;
     
-    // If we've reached the end of this round, reset mergeIndex.
+    // If the merge pointer is now at the end, reset it for a new round.
     if (mergeIndex >= runs.length - 1) {
       log("Completed round of merges. Resetting mergeIndex from " + mergeIndex + " to 0.");
       mergeIndex = 0;
@@ -381,17 +374,17 @@
     
     saveState();
     
-    // If only one run remains, sorting is complete.
+    // If only one run remains, we’re done.
     if (runs.length === 1) {
       sortingComplete = true;
       log("Sorting complete.");
       renderSortedList(runs[0]);
       return;
     }
-    // Continue to the next comparison.
     nextComparison();
   }
 }
+
 
     // Manual left card click
     card1.onclick = () => {
