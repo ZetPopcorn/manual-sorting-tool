@@ -166,7 +166,7 @@
     }
 
     function updateProgressDisplay() {
-      versionProgress.innerHTML = "Version 0.05.1<br>Progress: " + progress.toFixed(1) + "%";
+      versionProgress.innerHTML = "Version 0.05.2<br>Progress: " + progress.toFixed(1) + "%";
     }
 
     /* ========= Undo Button ========= */
@@ -221,30 +221,14 @@
       }
     }
 
-    /* ========= Auto-Resolve via Preset Ranking ========= */
+    /* ========= Helper: Get Preset Rank ========= */
     function getRank(item) {
       if (!presetRanking) return Infinity;
       const index = presetRanking.indexOf(item.name);
       return index === -1 ? Infinity : index;
     }
 
-    function autoResolveComparison(side) {
-      undoStack.push(cloneState());
-      updateUndoButton();
-      if (side === 'left') {
-        const chosen = currentMergeState.left.shift();
-        currentMergeState.merged.push(chosen);
-      } else {
-        const chosen = currentMergeState.right.shift();
-        currentMergeState.merged.push(chosen);
-      }
-      progress = Math.min(100, progress + progressIncrement);
-      updateProgressDisplay();
-      saveState();
-      nextComparison();
-    }
-
-    /* ========= Iterative Merge Sort Functions ========= */
+    /* ========= Merge Sort Iteration (Loop Version) ========= */
     function startMerge() {
       currentMergeState = {
         left: runs[mergeIndex].slice(),   // copy of left run
@@ -252,73 +236,68 @@
         merged: []
       };
       saveState();
-      updateUI();
-      // Immediately check for auto-resolve if a preset ranking exists:
-      nextComparison();
     }
 
     function nextComparison() {
-      // If no active merge, ensure mergeIndex is valid (reset if needed) and start one.
-      if (!currentMergeState) {
-        if (mergeIndex >= runs.length - 1 && runs.length > 1) {
-          mergeIndex = 0;
-        }
-        if (mergeIndex < runs.length - 1) {
-          startMerge();
-          return;
-        }
-      }
-      // If both arrays have items, check for auto-resolve based on preset ranking.
-      if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
-        const leftItem = currentMergeState.left[0];
-        const rightItem = currentMergeState.right[0];
-
-        if (presetRanking && presetRanking.length > 0) {
-          const leftRank = getRank(leftItem);
-          const rightRank = getRank(rightItem);
-          // Only auto-resolve if both items are ranked.
-          if (leftRank !== Infinity && rightRank !== Infinity) {
-            if (leftRank < rightRank) {
-              autoResolveComparison('left');
-              return;
-            } else if (rightRank < leftRank) {
-              autoResolveComparison('right');
-              return;
-            }
-            // If equal, fall through to manual choice.
+      // Use a loop to continue processing until a manual decision is needed
+      while (true) {
+        // If no active merge, try to start one
+        if (!currentMergeState) {
+          if (runs.length === 1) {
+            sortingComplete = true;
+            renderSortedList(runs[0]);
+            return;
+          }
+          if (mergeIndex >= runs.length - 1) {
+            mergeIndex = 0;
+          }
+          if (mergeIndex < runs.length - 1) {
+            startMerge();
+            // Continue loop to process the new merge state
           }
         }
-        updateUI();
-      } else {
-        // One side is empty; finish this merge.
-        if (currentMergeState.left.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.right);
-          currentMergeState.right = [];
-        }
-        if (currentMergeState.right.length === 0) {
-          currentMergeState.merged.push(...currentMergeState.left);
-          currentMergeState.left = [];
-        }
-        // Replace the two runs with the merged result.
-        runs[mergeIndex] = currentMergeState.merged;
-        runs.splice(mergeIndex + 1, 1);
-        currentMergeState = null;
-        mergeIndex++;
-
-        // If we've merged all adjacent pairs in this round, reset mergeIndex.
-        if (mergeIndex >= runs.length - 1) {
-          mergeIndex = 0;
-        }
-
-        saveState();
-
-        // If only one run remains, we're done.
-        if (runs.length === 1) {
-          sortingComplete = true;
-          renderSortedList(runs[0]);
+        // If both sides have items, check for auto-resolve using presetRanking
+        if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
+          if (presetRanking && presetRanking.length > 0) {
+            const leftRank = getRank(currentMergeState.left[0]);
+            const rightRank = getRank(currentMergeState.right[0]);
+            if (leftRank !== Infinity && rightRank !== Infinity) {
+              // Auto-resolve if one is ranked higher
+              undoStack.push(cloneState());
+              updateUndoButton();
+              if (leftRank < rightRank) {
+                currentMergeState.merged.push(currentMergeState.left.shift());
+              } else if (rightRank < leftRank) {
+                currentMergeState.merged.push(currentMergeState.right.shift());
+              }
+              progress = Math.min(100, progress + progressIncrement);
+              updateProgressDisplay();
+              saveState();
+              continue; // recheck the merge state in the loop
+            }
+          }
+          // Neither auto-resolve applies – show the current pair for manual decision
+          updateUI();
           return;
+        } else {
+          // One side is empty; finish this merge.
+          if (currentMergeState.left.length === 0) {
+            currentMergeState.merged.push(...currentMergeState.right);
+            currentMergeState.right = [];
+          } else if (currentMergeState.right.length === 0) {
+            currentMergeState.merged.push(...currentMergeState.left);
+            currentMergeState.left = [];
+          }
+          runs[mergeIndex] = currentMergeState.merged;
+          runs.splice(mergeIndex + 1, 1);
+          currentMergeState = null;
+          mergeIndex++;
+          if (mergeIndex >= runs.length - 1) {
+            mergeIndex = 0;
+          }
+          saveState();
+          // Loop to begin (or continue) the next merge.
         }
-        nextComparison();
       }
     }
 
@@ -327,8 +306,7 @@
       if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
       undoStack.push(cloneState());
       updateUndoButton();
-      const chosen = currentMergeState.left.shift();
-      currentMergeState.merged.push(chosen);
+      currentMergeState.merged.push(currentMergeState.left.shift());
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
@@ -340,8 +318,7 @@
       if (!currentMergeState || currentMergeState.left.length === 0 || currentMergeState.right.length === 0) return;
       undoStack.push(cloneState());
       updateUndoButton();
-      const chosen = currentMergeState.right.shift();
-      currentMergeState.merged.push(chosen);
+      currentMergeState.merged.push(currentMergeState.right.shift());
       progress = Math.min(100, progress + progressIncrement);
       updateProgressDisplay();
       saveState();
