@@ -258,17 +258,25 @@
     }
 
     function nextComparison() {
-      // If no active merge, ensure mergeIndex is valid (reset if needed) and start one.
+      // If not already in a merge, start one if possible.
+      // The bug fix is here: if mergeIndex is not less than runs.length - 1,
+      // we reset mergeIndex to 0 so that a new merge can begin.
       if (!currentMergeState) {
-        if (mergeIndex >= runs.length - 1 && runs.length > 1) {
-          mergeIndex = 0;
-        }
         if (mergeIndex < runs.length - 1) {
+          startMerge();
+          return;
+        } else {
+          mergeIndex = 0;
+          if (runs.length < 2) {
+            sortingComplete = true;
+            renderSortedList(runs[0]);
+            return;
+          }
           startMerge();
           return;
         }
       }
-      // If both arrays have items, check for auto-resolve based on preset ranking.
+      // If both arrays have items, check for auto-resolve based on preset ranking
       if (currentMergeState.left.length > 0 && currentMergeState.right.length > 0) {
         const leftItem = currentMergeState.left[0];
         const rightItem = currentMergeState.right[0];
@@ -299,13 +307,13 @@
           currentMergeState.merged.push(...currentMergeState.left);
           currentMergeState.left = [];
         }
-        // Replace the two runs with the merged result.
+        // Replace the two runs with the merged result
         runs[mergeIndex] = currentMergeState.merged;
         runs.splice(mergeIndex + 1, 1);
         currentMergeState = null;
         mergeIndex++;
 
-        // If we've merged all adjacent pairs in this round, reset mergeIndex.
+        // If we've merged all adjacent pairs in this round, start over.
         if (mergeIndex >= runs.length - 1) {
           mergeIndex = 0;
         }
